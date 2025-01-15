@@ -49,23 +49,28 @@ pub fn main() !void {
     // Broadcast GetService command
     try client.broadcast(commands.GetServiceCommand());
 
-    // Main receive loop
+    var read_thread = try std.Thread.spawn(.{}, readNetwork, .{
+        &sock,
+        &rt,
+    });
+    // read_thread.detach();
+    read_thread.join();
+}
+
+const ReadContext = struct {
+    sock: *network.Socket,
+    router: *router.Router,
+};
+
+fn readNetwork(sock: *network.Socket, rt: *router.Router) !void {
     var buffer: [1024]u8 = undefined;
     while (true) {
         const recv_result = try sock.receiveFrom(&buffer);
-        const response = buffer[0..recv_result.numberOfBytes];
-        const result = try rt.receive(response);
+        const result = try rt.receive(buffer[0..recv_result.numberOfBytes]);
 
         std.debug.print("Received message from serial number: {s}\n", .{result.serialNumber});
         std.debug.print("Header: {any}\n", .{result.header});
         std.debug.print("Payload: {any}\n", .{result.payload});
         std.debug.print("Payload length: {any}\n", .{result.payload.len});
-
-        // _ = try devs.register(
-        //     result.serialNumber,
-        //     recv_result.sender.port(),
-        //     recv_result.sender.address,
-        //     &result.header.target,
-        // );
     }
 }

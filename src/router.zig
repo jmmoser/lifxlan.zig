@@ -12,14 +12,22 @@ pub const HandlerEntry = struct {
     handler: MessageHandler,
 };
 
+fn defaultOnMessage(header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
+    _ = header;
+    _ = payload;
+    _ = serialNumber;
+}
+
 pub const RouterOptions = struct {
     onSend: *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[]const u8) void,
+    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
     handlers: ?std.AutoHashMap(u32, HandlerEntry),
 };
 
 pub const Router = struct {
     handlers: std.AutoHashMap(u32, HandlerEntry),
     onSend: *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[]const u8) void,
+    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
     sourceCounter: u32,
     allocator: std.mem.Allocator,
 
@@ -27,6 +35,7 @@ pub const Router = struct {
         return Router{
             .handlers = options.handlers orelse std.AutoHashMap(u32, HandlerEntry).init(allocator),
             .onSend = options.onSend,
+            .onMessage = options.onMessage,
             .sourceCounter = 2,
             .allocator = allocator,
         };
@@ -83,6 +92,10 @@ pub const Router = struct {
         const header = try encoding.decodeHeader(message, 0);
         const payload = encoding.getPayload(message);
         const serialNumber = utils.convertTargetToSerialNumber(header.target);
+
+        if (self.onMessage) |onMessage| {
+            onMessage(header, payload, serialNumber);
+        }
 
         if (self.handlers.get(header.source)) |handler| {
             handler.handler(handler.context, header, payload, serialNumber);
