@@ -83,7 +83,7 @@ pub const Devices = struct {
         self.deviceResolvers.deinit();
     }
 
-    pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: []const u8, target: [6]u8) !Device {
+    pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: []const u8, target: [6]u8) !*Device {
         const serialNumberSlice: []const u8 = serialNumber[0..];
 
         if (self.knownDevices.getPtr(serialNumberSlice)) |existing| {
@@ -94,7 +94,7 @@ pub const Devices = struct {
                     callback(existing);
                 }
             }
-            return existing.*;
+            return existing;
         }
 
         var device = try Device.init(self.allocator, .{
@@ -117,11 +117,13 @@ pub const Devices = struct {
             _ = self.deviceResolvers.remove(&serialNumber);
         }
 
-        return device;
+        return &device;
     }
 
     pub fn remove(self: *Devices, serialNumber: [12]u8) bool {
-        if (self.knownDevices.fetchRemove(serialNumber)) |kv| {
+        const serialNumberSlice: []const u8 = serialNumber[0..];
+
+        if (self.knownDevices.fetchRemove(serialNumberSlice)) |kv| {
             if (self.options.onRemoved) |callback| {
                 callback(kv.value);
             }
@@ -143,8 +145,10 @@ pub const Devices = struct {
         frame: @Frame(getDeviceAsync),
     };
 
-    pub fn getDevice(self: *Devices, serialNumber: [12]u8, timeout_ms: ?u32) !GetDeviceResult {
-        if (self.knownDevices.get(serialNumber)) |device| {
+    pub fn get(self: *Devices, serialNumber: [12]u8, timeout_ms: ?u32) !GetDeviceResult {
+        const serialNumberSlice: []const u8 = serialNumber[0..];
+
+        if (self.knownDevices.get(serialNumberSlice)) |device| {
             return GetDeviceResult{
                 .device = device,
                 .frame = undefined,
@@ -157,7 +161,7 @@ pub const Devices = struct {
         if (timeout > 0) {
             const timer = try std.time.Timer.start();
             while (timer.read() < timeout * std.time.ns_per_ms) {
-                if (self.knownDevices.get(serialNumber)) |device| {
+                if (self.knownDevices.get(serialNumberSlice)) |device| {
                     return GetDeviceResult{
                         .device = device,
                         .frame = frame,
