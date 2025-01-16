@@ -19,19 +19,21 @@ pub const Device = struct {
         // TODO: I don't think this is needed
         const addr = try allocator.dupe(u8, config.address);
         const port = config.port orelse constants.PORT;
-        var target = config.target orelse constants.NO_TARGET;
 
-        if (config.serialNumber) |sn| {
-            if (config.target == null) {
-                target = try utils.convertSerialNumberToTarget(sn);
-            }
+        var target: [6]u8 = undefined;
+        if (config.target) |t| {
+            target = t;
+        } else if (config.serialNumber) |sn| {
+            target = try utils.convertSerialNumberToTarget(sn);
+        } else {
+            target = constants.NO_TARGET;
         }
 
         return Device{
             .address = addr,
             .port = port,
             .target = target,
-            .serialNumber = config.serialNumber orelse .{ '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0' }, // "000000000000",
+            .serialNumber = config.serialNumber orelse constants.NO_SERIAL_NUMBER,
             .sequence = config.sequence orelse 0,
         };
     }
@@ -82,8 +84,9 @@ pub const Devices = struct {
     }
 
     pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: []const u8, target: [6]u8) !Device {
-        // Check for existing device
-        if (self.knownDevices.getPtr(&serialNumber)) |existing| {
+        const serialNumberSlice: []const u8 = serialNumber[0..];
+
+        if (self.knownDevices.getPtr(serialNumberSlice)) |existing| {
             if (port != existing.port or !std.mem.eql(u8, address, existing.address)) {
                 existing.port = port;
                 existing.address = try self.allocator.dupe(u8, address);
@@ -101,13 +104,12 @@ pub const Devices = struct {
             .target = target,
         });
 
-        try self.knownDevices.put(&serialNumber, device);
+        try self.knownDevices.put(serialNumberSlice, device);
 
         if (self.options.onAdded) |callback| {
             callback(&device);
         }
 
-        // Handle resolvers
         if (self.deviceResolvers.get(&serialNumber)) |resolvers| {
             for (resolvers.items) |resolver| {
                 resolver(&device);
@@ -173,7 +175,6 @@ pub const Devices = struct {
     }
 
     fn getDeviceAsync(self: *Devices, serialNumber: [12]u8) !Device {
-        // Create or get resolver list
         var resolvers = if (self.deviceResolvers.get(serialNumber)) |existing|
             existing
         else blk: {

@@ -10,11 +10,6 @@ var gSock: *network.Socket = undefined;
 var client: *clientMod.Client = undefined;
 var devices: devicesMod.Devices = undefined;
 
-// fn onSendFn(message: []const u8, port: u16, address: []const u8, _: ?[12]u8) void {
-//     _ = address;
-//     const addr: network.EndPoint = .{ .address = network.Address{ .ipv4 = network.Address.IPv4.broadcast }, .port = port };
-//     _ = gSock.sendTo(addr, message) catch return;
-// }
 fn onSendFn(message: []const u8, port: u16, address: []const u8, _: ?[12]u8) anyerror!void {
     const addr = try network.Address.IPv4.parse(address);
     const endpoint: network.EndPoint = .{ .address = network.Address{ .ipv4 = addr }, .port = port };
@@ -42,7 +37,6 @@ pub fn main() !void {
     defer sock.close();
     try sock.setBroadcast(true);
 
-    // Store the pointer globally (not always ideal, but simple for an example).
     gSock = &sock;
 
     var rt = try router.Router.init(allocator, .{
@@ -51,24 +45,20 @@ pub fn main() !void {
     });
     defer rt.deinit();
 
-    // Create devices manager
     devices = devicesMod.Devices.init(allocator, .{
         .onAdded = onDeviceAdded,
     });
     defer devices.deinit();
 
-    // Create client
     client = try clientMod.Client.init(allocator, .{ .router = &rt });
     defer client.deinit();
 
-    // Broadcast GetService command
     try client.broadcast(commands.GetServiceCommand());
 
     var read_thread = try std.Thread.spawn(.{}, socketReader, .{
         &sock,
         &rt,
     });
-    // read_thread.detach();
     read_thread.join();
 }
 
@@ -85,8 +75,5 @@ fn socketReader(sock: *network.Socket, rt: *router.Router) !void {
         _ = devices.register(result.serialNumber, recv_result.sender.port, &recv_result.sender.address.ipv4.value, result.header.target.*) catch {};
 
         std.debug.print("Received message from serial number: {s}: {any}\n", .{ result.serialNumber, result.payload });
-        // std.debug.print("Header: {any}\n", .{result.header});
-        // std.debug.print("Payload: {any}\n", .{result.payload});
-        // std.debug.print("Payload length: {any}\n", .{result.payload.len});
     }
 }

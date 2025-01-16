@@ -131,10 +131,6 @@ pub fn convertTargetToSerialNumber(target: *const [6]u8) [12]u8 {
 
 /// Convert serial number string to target bytes
 pub fn convertSerialNumberToTarget(serialNumber: [12]u8) ![6]u8 {
-    if (serialNumber.len != 12) {
-        return error.InvalidSerialNumber;
-    }
-
     var target: [6]u8 = undefined;
     var i: usize = 0;
     while (i < 6) : (i += 1) {

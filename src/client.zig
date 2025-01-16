@@ -152,8 +152,9 @@ pub const Client = struct {
         );
         defer self.allocator.free(bytes);
 
+        std.debug.print("Device {s} sequence {d}\n", .{ device.serialNumber, device.sequence });
         const key = try getResponseKey(device.serialNumber, device.sequence);
-        std.debug.print("Key: {s}\n", .{key});
+        // std.debug.print("Key: {s}\n", .{key});
         try self.registerResponseHandler(key, command.decode);
 
         device.sequence = incrementSequence(device.sequence);
