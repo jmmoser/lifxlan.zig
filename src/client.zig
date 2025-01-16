@@ -5,7 +5,7 @@ const router = @import("router.zig");
 const devices = @import("devices.zig");
 const commands = @import("commands.zig");
 
-// fn getResponseKey(serialNumber: []const u8, sequence: u8) ![64]u8 {
+// fn getResponseKey(serialNumber: [12]u8, sequence: u8) ![64]u8 {
 //     var key: [64]u8 = undefined;
 //     const result = try std.fmt.bufPrint(&key, "{s}:{d}", .{ serialNumber, sequence });
 //     @memcpy(key[0..result.len], result);
@@ -15,9 +15,11 @@ const commands = @import("commands.zig");
 //     //     return err;
 //     // };
 // }
-fn getResponseKey(serialNumber: [12]u8, sequence: u8) ![64]u8 {
-    var key: [64]u8 = undefined;
-    std.debug.print("Serial number: {s}\n", .{serialNumber});
+
+const ResponseKey = [14]u8;
+
+fn getResponseKey(serialNumber: [12]u8, sequence: u8) !ResponseKey {
+    var key: ResponseKey = undefined;
     _ = try std.fmt.bufPrint(&key, "{s}:{d}", .{ serialNumber, sequence });
     return key;
 }
@@ -30,8 +32,9 @@ fn incrementSequence(sequence: ?u8) u8 {
 }
 
 pub const ResponseHandler = struct {
-    handler: *const fn (typ: u16, bytes: []const u8, offsetRef: *encoding.OffsetRef) void,
-    timer: ?std.time.Timer = null,
+    handler: *const fn (context: *anyopaque, typ: u16, bytes: []const u8, offsetRef: *encoding.OffsetRef) void,
+    context: *anyopaque,
+    // timer: ?std.time.Timer = null,
 };
 
 pub const ClientOptions = struct {
@@ -44,7 +47,7 @@ pub const Client = struct {
     router: *router.Router,
     source: u32,
     defaultTimeoutMs: u32,
-    responseHandlers: std.AutoHashMap([64]u8, ResponseHandler),
+    responseHandlers: std.AutoHashMap(ResponseKey, ResponseHandler),
     disposed: bool,
     allocator: std.mem.Allocator,
 
@@ -57,15 +60,11 @@ pub const Client = struct {
             .router = options.router,
             .source = source,
             .defaultTimeoutMs = defaultTimeoutMs,
-            .responseHandlers = std.AutoHashMap([64]u8, ResponseHandler).init(allocator),
+            .responseHandlers = std.AutoHashMap(ResponseKey, ResponseHandler).init(allocator),
             .disposed = false,
             .allocator = allocator,
         };
 
-        // try options.router.register(source, .{
-        //     .onMessage = onMessage,
-        //     .context = client,
-        // });
         try options.router.register(source, .{
             .handler = onMessage,
             .context = client,
@@ -85,7 +84,7 @@ pub const Client = struct {
 
     pub fn broadcast(self: *Client, command: commands.Command) !void {
         const bytes = try encoding.encode(
-            &self.allocator,
+            self.allocator,
             true,
             self.source,
             &constants.NO_TARGET,
@@ -97,7 +96,7 @@ pub const Client = struct {
         );
         defer self.allocator.free(bytes);
 
-        self.router.send(bytes, constants.PORT, constants.BROADCAST, null);
+        try self.router.send(bytes, constants.PORT, constants.BROADCAST, null);
     }
 
     pub fn unicast(self: *Client, command: commands.Command, device: devices.Device) !void {
@@ -139,7 +138,7 @@ pub const Client = struct {
         self.router.send(bytes, device.port, device.address, device.serialNumber);
     }
 
-    pub fn send(self: *Client, command: commands.Command, device: devices.Device) !void {
+    pub fn send(self: *Client, command: commands.Command, device: *devices.Device) !void {
         const bytes = try encoding.encode(
             self.allocator,
             false,
@@ -154,43 +153,22 @@ pub const Client = struct {
         defer self.allocator.free(bytes);
 
         const key = try getResponseKey(device.serialNumber, device.sequence);
+        std.debug.print("Key: {s}\n", .{key});
         try self.registerResponseHandler(key, command.decode);
 
         device.sequence = incrementSequence(device.sequence);
-        self.router.send(bytes, device.port, device.address, device.serialNumber);
+        try self.router.send(bytes, device.port, device.address, device.serialNumber);
     }
 
-    // fn onMessage(context: ?*anyopaque, header: encoding.Header, payload: []const u8, serialNumber: []const u8) void {
-    //     // const self = @ptrCast(*Client, @alignCast(@alignOf(Client), context.?));
-    //     const self: *Client = @alignCast(@ptrCast(context.?));
-    //     const key = getResponseKey(serialNumber, header.sequence) catch return;
-    //     if (self.responseHandlers.get(key)) |handler| {
-    //         var offsetRef = encoding.OffsetRef{ .current = 0 };
-    //         handler.handler(header.type, payload, &offsetRef);
-    //         _ = self.responseHandlers.remove(key);
-    //     }
-    // }
-
     fn onMessage(context: *anyopaque, header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
-        // fn onMessage(context: *anyopaque, header: encoding.Header, payload: []const u8, serialNumber: []const u8) void {
-        // const self: *Client = @alignCast(@ptrCast(context.?));
         const self: *Client = @ptrCast(@alignCast(context));
         const key = getResponseKey(serialNumber, header.sequence) catch return;
         if (self.responseHandlers.get(key)) |handler| {
             var offsetRef = encoding.OffsetRef{ .current = 0 };
-            handler.handler(header.type, payload, &offsetRef);
+            handler.handler(handler.context, header.type, payload, &offsetRef);
             _ = self.responseHandlers.remove(key);
         }
     }
-
-    // fn onMessage(self: *Client, header: encoding.Header, payload: []const u8, serialNumber: []const u8) void {
-    //     const key = getResponseKey(serialNumber, header.sequence) catch return;
-    //     if (self.responseHandlers.get(key)) |handler| {
-    //         var offsetRef = encoding.OffsetRef{ .current = 0 };
-    //         handler.handler(header.type, payload, &offsetRef);
-    //         _ = self.responseHandlers.remove(key);
-    //     }
-    // }
 
     fn registerAckHandler(self: *Client, key: [64]u8) !void {
         if (self.responseHandlers.contains(key)) {
@@ -199,9 +177,9 @@ pub const Client = struct {
 
         const handler = ResponseHandler{
             .handler = struct {
-                fn handle(typ: constants.Type, _: []const u8, _: *encoding.OffsetRef) void {
-                    if (typ == .Acknowledgement) {
-                        // Handle acknowledgement
+                fn handle(typ: u16, _: []const u8, _: *encoding.OffsetRef) void {
+                    if (typ == @intFromEnum(constants.Type.Acknowledgement)) {
+                        // TODO: Handle acknowledgement
                     }
                 }
             }.handle,
@@ -212,7 +190,7 @@ pub const Client = struct {
 
     fn registerResponseHandler(
         self: *Client,
-        key: [64]u8,
+        key: ResponseKey,
         decode: *const fn ([]const u8, *encoding.OffsetRef) anyerror!void,
     ) !void {
         if (self.responseHandlers.contains(key)) {
@@ -220,15 +198,17 @@ pub const Client = struct {
         }
 
         const handler = ResponseHandler{
+            .context = @constCast(@ptrCast(decode)),
             .handler = struct {
-                fn handle(typ: constants.Type, bytes: []const u8, offsetRef: *encoding.OffsetRef) void {
-                    if (typ == .StateUnhandled) {
+                fn handle(resCtx: *anyopaque, responseType: u16, bytes: []const u8, offsetRef: *encoding.OffsetRef) void {
+                    const decodeFn: commands.Decode = @ptrCast(@alignCast(resCtx));
+                    if (responseType == @intFromEnum(constants.Type.StateUnhandled)) {
                         const requestType = encoding.decodeStateUnhandled(bytes, offsetRef) catch return;
                         // Handle unhandled request
                         std.debug.print("Unhandled request: {}\n", .{requestType});
                         std.debug.assert(false);
                     }
-                    _ = decode(bytes, offsetRef) catch return;
+                    _ = decodeFn(bytes, offsetRef) catch return; // Access decode via context
                 }
             }.handle,
         };

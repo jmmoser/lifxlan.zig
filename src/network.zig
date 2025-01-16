@@ -757,34 +757,34 @@ pub const Socket = struct {
             switch (std.posix.errno(rc)) {
                 .SUCCESS => return @intCast(rc),
 
-                // .ACCES => return error.AccessDenied,
-                // .AGAIN => return error.WouldBlock,
-                // .ALREADY => return error.FastOpenAlreadyInProgress,
-                // .BADF => unreachable, // always a race condition
-                // .CONNREFUSED => return error.ServiceUnavailable,
-                // .CONNRESET => return error.ConnectionResetByPeer,
-                // .DESTADDRREQ => unreachable, // The socket is not connection-mode, and no peer address is set.
-                // .FAULT => unreachable, // An invalid user space address was specified for an argument.
-                // .INTR => continue,
-                // .INVAL => return error.UnreachableAddress,
-                // // connection-mode socket was connected already but a recipient was specified
-                // // sendto using NULL destination address
-                // .ISCONN => return std.posix.sendto(sockfd, buf, flags, null, 0),
-                // .MSGSIZE => return error.MessageTooBig,
-                // .NOBUFS => return error.SystemResources,
-                // .NOMEM => return error.SystemResources,
-                // .NOTSOCK => unreachable, // The file descriptor sockfd does not refer to a socket.
-                // .OPNOTSUPP => unreachable, // Some bit in the flags argument is inappropriate for the socket type.
-                // .PIPE => return error.BrokenPipe,
-                // .AFNOSUPPORT => return error.AddressFamilyNotSupported,
-                // .LOOP => return error.SymLinkLoop,
-                // .NAMETOOLONG => return error.NameTooLong,
-                // .NOENT => return error.FileNotFound,
-                // .NOTDIR => return error.NotDir,
-                // .HOSTUNREACH => return error.NetworkUnreachable,
-                // .NETUNREACH => return error.NetworkUnreachable,
-                // .NOTCONN => return error.SocketNotConnected,
-                // .NETDOWN => return error.NetworkSubsystemFailed,
+                .ACCES => return error.AccessDenied,
+                .AGAIN => return error.WouldBlock,
+                .ALREADY => return error.FastOpenAlreadyInProgress,
+                .BADF => unreachable, // always a race condition
+                // .CONNREFUSED => return error.ConnectionRefused,
+                .CONNRESET => return error.ConnectionResetByPeer,
+                .DESTADDRREQ => unreachable, // The socket is not connection-mode, and no peer address is set.
+                .FAULT => unreachable, // An invalid user space address was specified for an argument.
+                .INTR => continue,
+                .INVAL => return error.UnreachableAddress,
+                // connection-mode socket was connected already but a recipient was specified
+                // sendto using NULL destination address
+                .ISCONN => return std.posix.sendto(sockfd, buf, flags, null, 0),
+                .MSGSIZE => return error.MessageTooBig,
+                .NOBUFS => return error.SystemResources,
+                .NOMEM => return error.SystemResources,
+                .NOTSOCK => unreachable, // The file descriptor sockfd does not refer to a socket.
+                .OPNOTSUPP => unreachable, // Some bit in the flags argument is inappropriate for the socket type.
+                .PIPE => return error.BrokenPipe,
+                .AFNOSUPPORT => return error.AddressFamilyNotSupported,
+                .LOOP => return error.SymLinkLoop,
+                .NAMETOOLONG => return error.NameTooLong,
+                .NOENT => return error.FileNotFound,
+                .NOTDIR => return error.NotDir,
+                .HOSTUNREACH => return error.NetworkUnreachable,
+                .NETUNREACH => return error.NetworkUnreachable,
+                .NOTCONN => return error.SocketNotConnected,
+                .NETDOWN => return error.NetworkSubsystemFailed,
                 else => |err| return std.posix.unexpectedErrno(err),
             }
         }

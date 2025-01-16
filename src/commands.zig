@@ -2,10 +2,12 @@ const std = @import("std");
 const constants = @import("constants.zig");
 const encoding = @import("encoding.zig");
 
+pub const Decode = *const fn (bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void;
+
 pub const Command = struct {
     type: u16,
     payload: ?[]const u8 = null,
-    decode: *const fn (bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void,
+    decode: Decode,
 };
 
 pub fn GetServiceCommand() Command {
@@ -67,7 +69,12 @@ pub fn SetPowerCommand(allocator: std.mem.Allocator, power: anytype) !Command {
 pub fn GetLabelCommand() Command {
     return .{
         .type = @intFromEnum(constants.Type.GetLabel),
-        .decode = encoding.decodeStateLabel,
+        // .decode = encoding.decodeStateLabel,
+        .decode = struct {
+            fn wrap(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+                _ = try encoding.decodeStateLabel(bytes, offsetRef);
+            }
+        }.wrap,
     };
 }
 

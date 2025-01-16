@@ -18,16 +18,19 @@ fn defaultOnMessage(header: encoding.Header, payload: []const u8, serialNumber: 
     _ = serialNumber;
 }
 
+const OnSend = *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[12]u8) anyerror!void;
+const OnMessage = *const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void;
+
 pub const RouterOptions = struct {
-    onSend: *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[]const u8) void,
-    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
+    onSend: OnSend,
+    onMessage: ?OnMessage = null,
     handlers: ?std.AutoHashMap(u32, HandlerEntry),
 };
 
 pub const Router = struct {
     handlers: std.AutoHashMap(u32, HandlerEntry),
-    onSend: *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[]const u8) void,
-    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
+    onSend: OnSend,
+    onMessage: ?OnMessage = null,
     sourceCounter: u32,
     allocator: std.mem.Allocator,
 
@@ -78,8 +81,8 @@ pub const Router = struct {
         _ = self.handlers.remove(source);
     }
 
-    pub fn send(self: *Router, message: []const u8, port: u16, address: []const u8, serialNumber: ?[]const u8) void {
-        self.onSend(message, port, address, serialNumber);
+    pub fn send(self: *Router, message: []const u8, port: u16, address: []const u8, serialNumber: ?[12]u8) anyerror!void {
+        try self.onSend(message, port, address, serialNumber);
     }
 
     pub const ReceiveResult = struct {

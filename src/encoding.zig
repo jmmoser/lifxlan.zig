@@ -147,7 +147,7 @@ fn encodeStringTo(bytes: []u8, offset: usize, value: []const u8, byteLength: usi
     }
 }
 
-pub fn encodeString(allocator: *std.mem.Allocator, value: []const u8, byteLength: usize) ![]u8 {
+pub fn encodeString(allocator: std.mem.Allocator, value: []const u8, byteLength: usize) ![]u8 {
     const buf = try allocator.alloc(u8, byteLength);
     @memset(buf, 0);
     encodeStringTo(buf, 0, value, byteLength);
@@ -185,7 +185,7 @@ pub fn encodeTimestampTo(bytes: []u8, offset: usize, date: std.time.Time) void {
 }
 
 pub fn encode(
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     tagged: bool,
     source: u32,
     target: []const u8,
@@ -335,7 +335,7 @@ pub fn decodeStatePower(bytes: []const u8, offsetRef: *OffsetRef) !u16 {
 }
 
 pub fn decodeStateLabel(bytes: []const u8, offsetRef: *OffsetRef) ![]const u8 {
-    return try decodeString(bytes, offsetRef, 32);
+    return decodeString(bytes, offsetRef, 32);
 }
 
 pub fn decodeStateVersion(bytes: []const u8, offsetRef: *OffsetRef) !struct {
@@ -441,7 +441,7 @@ pub fn decodeSetColor(bytes: []const u8, offsetRef: *OffsetRef) !struct {
 }
 
 /// encodeSetColor(hue, saturation, brightness, kelvin, duration)
-pub fn encodeSetColor(allocator: *std.mem.Allocator, hue: u16, saturation: u16, brightness: u16, kelvin: u16, duration: u32) ![]u8 {
+pub fn encodeSetColor(allocator: std.mem.Allocator, hue: u16, saturation: u16, brightness: u16, kelvin: u16, duration: u32) ![]u8 {
     // 13 bytes
     const payload = try allocator.alloc(u8, 13);
     @memset(payload, 0);

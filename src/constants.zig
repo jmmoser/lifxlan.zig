@@ -1,4 +1,4 @@
-pub const NO_TARGET = [6]u8{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+pub const NO_TARGET: [6]u8 = [_]u8{0x00} ** 6;
 pub const BROADCAST = "255.255.255.255";
 pub const PORT: u16 = 56700;
 
