@@ -1,6 +1,7 @@
 pub const NO_TARGET: [6]u8 = [_]u8{0x00} ** 6;
 pub const NO_SERIAL_NUMBER: [12]u8 = [_]u8{0x00} ** 12;
 pub const BROADCAST = "255.255.255.255";
+// pub const BROADCAST: []const u8 = &[4]u8{ 255, 255, 255, 255 };
 pub const PORT: u16 = 56700;
 
 const ServiceType = enum(u8) {

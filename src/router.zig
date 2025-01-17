@@ -82,7 +82,9 @@ pub const Router = struct {
     }
 
     pub fn send(self: *Router, message: []const u8, port: u16, address: []const u8, serialNumber: ?[12]u8) anyerror!void {
+        // std.debug.print("Router sending message to {?s} at {s}\n", .{ serialNumber, address });
         try self.onSend(message, port, address, serialNumber);
+        // std.debug.print("Router sent message to {?s} at {s}\n", .{ serialNumber, address });
     }
 
     pub const ReceiveResult = struct {
@@ -100,8 +102,12 @@ pub const Router = struct {
             onMessage(header, payload, serialNumber);
         }
 
+        // std.debug.print("Router received message from {s} at {d}: {any}\n", .{ serialNumber, header.source, payload });
+
         if (self.handlers.get(header.source)) |handler| {
             handler.handler(handler.context, header, payload, serialNumber);
+        } else {
+            std.debug.print("Router received message from {s} at {d} but no handler found\n", .{ serialNumber, header.source });
         }
 
         return ReceiveResult{

@@ -41,6 +41,7 @@ pub const ClientOptions = struct {
     router: *router.Router,
     defaultTimeoutMs: ?u32 = 3000,
     source: ?u32 = null,
+    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
 };
 
 pub const Client = struct {
@@ -50,6 +51,7 @@ pub const Client = struct {
     responseHandlers: std.AutoHashMap(ResponseKey, ResponseHandler),
     disposed: bool,
     allocator: std.mem.Allocator,
+    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void,
 
     pub fn init(allocator: std.mem.Allocator, options: ClientOptions) !*Client {
         const source = options.source orelse try options.router.nextSource();
@@ -63,6 +65,7 @@ pub const Client = struct {
             .responseHandlers = std.AutoHashMap(ResponseKey, ResponseHandler).init(allocator),
             .disposed = false,
             .allocator = allocator,
+            .onMessage = options.onMessage,
         };
 
         try options.router.register(source, .{
@@ -152,9 +155,7 @@ pub const Client = struct {
         );
         defer self.allocator.free(bytes);
 
-        std.debug.print("Device {s} sequence {d}\n", .{ device.serialNumber, device.sequence });
         const key = try getResponseKey(device.serialNumber, device.sequence);
-        // std.debug.print("Key: {s}\n", .{key});
         try self.registerResponseHandler(key, command.decode);
 
         device.sequence = incrementSequence(device.sequence);
@@ -163,9 +164,13 @@ pub const Client = struct {
 
     fn onMessage(context: *anyopaque, header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
         const self: *Client = @ptrCast(@alignCast(context));
+        if (self.onMessage) |onMessageFn| {
+            onMessageFn(header, payload, serialNumber);
+        }
         const key = getResponseKey(serialNumber, header.sequence) catch return;
         if (self.responseHandlers.get(key)) |handler| {
             var offsetRef = encoding.OffsetRef{ .current = 0 };
+            // const decoded = handler.
             handler.handler(handler.context, header.type, payload, &offsetRef);
             _ = self.responseHandlers.remove(key);
         }
