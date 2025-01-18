@@ -1,7 +1,6 @@
 const std = @import("std");
+const network = @import("network");
 const types = @import("types.zig");
-const network = @import("network.zig");
-// const network = @import("network");
 const router = @import("router.zig");
 const devicesMod = @import("devices.zig");
 const commands = @import("commands.zig");

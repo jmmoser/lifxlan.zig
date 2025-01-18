@@ -1,0 +1,3 @@
+```sh
+zig build run
+```

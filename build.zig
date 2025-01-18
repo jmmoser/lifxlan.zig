@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lib = b.addStaticLibrary(.{
-        .name = "zigguide",
+        .name = "lifxlan",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = b.path("src/root.zig"),
@@ -41,10 +41,10 @@ pub fn build(b: *std.Build) void {
     // step when running `zig build`).
     b.installArtifact(exe);
 
-    // exe.root_module.addImport("network", b.dependency("network", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // }).module("network"));
+    exe.root_module.addImport("network", b.dependency("network", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("network"));
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
