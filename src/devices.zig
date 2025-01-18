@@ -3,21 +3,19 @@ const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
 pub const Device = struct {
-    address: []const u8,
+    address: [4]u8,
     port: u16,
     target: [6]u8,
     serialNumber: [12]u8,
     sequence: u8,
 
-    pub fn init(allocator: std.mem.Allocator, config: struct {
-        address: []const u8,
+    pub fn init(config: struct {
+        address: [4]u8,
         serialNumber: ?[12]u8 = null,
         port: ?u16 = null,
         target: ?[6]u8 = null,
         sequence: ?u8 = null,
     }) !Device {
-        // TODO: I don't think this is needed
-        const addr = try allocator.dupe(u8, config.address);
         const port = config.port orelse constants.PORT;
 
         var target: [6]u8 = undefined;
@@ -30,17 +28,12 @@ pub const Device = struct {
         }
 
         return Device{
-            .address = addr,
+            .address = config.address,
             .port = port,
             .target = target,
             .serialNumber = config.serialNumber orelse constants.NO_SERIAL_NUMBER,
             .sequence = config.sequence orelse 0,
         };
-    }
-
-    pub fn deinit(self: *Device, allocator: std.mem.Allocator) void {
-        // TODO: I don't think this is needed
-        allocator.free(self.address);
     }
 };
 
@@ -69,11 +62,6 @@ pub const Devices = struct {
     }
 
     pub fn deinit(self: *Devices) void {
-        var it = self.knownDevices.iterator();
-        while (it.next()) |entry| {
-            var device = entry.value_ptr;
-            device.deinit(self.allocator);
-        }
         self.knownDevices.deinit();
 
         var resolvers_it = self.deviceResolvers.iterator();
@@ -83,13 +71,14 @@ pub const Devices = struct {
         self.deviceResolvers.deinit();
     }
 
-    pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: []const u8, target: [6]u8) !*Device {
+    pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: [4]u8, target: [6]u8) !*Device {
         const serialNumberSlice: []const u8 = serialNumber[0..];
 
         if (self.knownDevices.getPtr(serialNumberSlice)) |existing| {
-            if (port != existing.port or !std.mem.eql(u8, address, existing.address)) {
+            if (port != existing.port or !std.mem.eql(u8, &address, &existing.address)) {
                 existing.port = port;
-                existing.address = try self.allocator.dupe(u8, address);
+                // existing.address = try self.allocator.dupe(u8, address);
+                existing.address = address;
                 if (self.options.onChanged) |callback| {
                     callback(existing);
                 }
@@ -97,7 +86,7 @@ pub const Devices = struct {
             return existing;
         }
 
-        var device = try Device.init(self.allocator, .{
+        var device = try Device.init(.{
             .serialNumber = serialNumber,
             .port = port,
             .address = address,
