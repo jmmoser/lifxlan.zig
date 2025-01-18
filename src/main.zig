@@ -115,13 +115,16 @@ pub fn main() !void {
     });
     defer client.deinit();
 
-    try client.broadcast(commands.GetServiceCommand());
+    // try client.broadcast(commands.GetServiceCommand());
+
+    var discover_thread = try std.Thread.spawn(.{}, discoverDevicesThread, .{});
 
     var read_thread = try std.Thread.spawn(.{}, socketReader, .{
         &sock,
         &rt,
     });
     read_thread.join();
+    discover_thread.join();
 }
 
 const ReadContext = struct {
@@ -136,5 +139,13 @@ fn socketReader(sock: *network.Socket, rt: *router.Router) !void {
         const result = try rt.receive(buffer[0..recv_result.numberOfBytes]);
 
         _ = devices.register(result.serialNumber, recv_result.sender.port, recv_result.sender.address.ipv4.value, result.header.target.*) catch {};
+    }
+}
+
+fn discoverDevicesThread() !void {
+    while (true) {
+        // std.debug.print("Discovering devices\n", .{});
+        try client.broadcast(commands.GetServiceCommand());
+        std.time.sleep(5 * 1000 * 1000 * 1000);
     }
 }
