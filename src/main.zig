@@ -16,9 +16,6 @@ var devices: devicesMod.Devices = undefined;
 const stdout = std.io.getStdOut().writer();
 
 fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
-    // std.debug.print("Parsing address {any}\n", .{address});
-    // const addr = network.Address.IPv4.init(address[0], address[1], address[2], address[3]);
-    // const addr = try network.Address.IPv4.parse(address);
     _ = serialNumber;
     const addr = network.Address.IPv4.init(address[0], address[1], address[2], address[3]);
     const endpoint: network.EndPoint = .{ .address = network.Address{ .ipv4 = addr }, .port = port };
@@ -114,8 +111,6 @@ pub fn main() !void {
         .onMessage = clientMessageHandler.handler,
     });
     defer client.deinit();
-
-    // try client.broadcast(commands.GetServiceCommand());
 
     var discover_thread = try std.Thread.spawn(.{}, discoverDevicesThread, .{});
 
