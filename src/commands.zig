@@ -10,6 +10,8 @@ pub const Command = struct {
     decode: Decode,
 };
 
+fn noopDecode(_: []const u8, _: *encoding.OffsetRef) anyerror!void {}
+
 pub fn GetServiceCommand() Command {
     return .{
         .type = @intFromEnum(constants.Type.GetService),
@@ -40,6 +42,14 @@ pub fn GetWifiFirmwareCommand() Command {
     return .{
         .type = @intFromEnum(constants.Type.GetWifiFirmware),
         .decode = encoding.decodeStateWifiFirmware,
+    };
+}
+
+pub fn GetColorCommand() Command {
+    return .{
+        .type = @intFromEnum(constants.Type.GetColor),
+        // .decode = encoding.decodeLightState,
+        .decode = noopDecode,
     };
 }
 

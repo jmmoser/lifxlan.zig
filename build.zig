@@ -46,6 +46,17 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     }).module("network"));
 
+    exe.root_module.addImport("ansi-term", b.dependency("ansi-term", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("ansi-term"));
+
+    // const ansi_dep = b.dependency("zig-ansi", .{
+    //     .target = target,
+    //     // .optimize = optimize,
+    // });
+    // exe.root_module.addImport("zig-ansi", ansi_dep.module("zig-ansi"));
+
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.

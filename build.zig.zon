@@ -7,5 +7,13 @@
             .url = "https://github.com/ikskuh/zig-network/archive/8db1aa2f5efdf1e2ff6dd5f5f8efe1b4f44ff978.tar.gz",
             .hash = "12203ae90636504172540e6e0feb2881affd82768af6f0a379cb84a3f70b53705fe5",
         },
+        .@"ansi-term" = .{
+            .url = "https://github.com/ziglibs/ansi-term/archive/010f170cbe72786ed52645a9dd6cde27b02b47b4.tar.gz",
+            .hash = "12203a64b02d46e6c2e268b7da60cb11b2fa83dc580cad77cf330d1438e2280de46f",
+        },
+        // .@"zig-ansi" = .{
+        //     .url = "https://github.com/nektro/zig-ansi/archive/aef2c1d48b5127af0ee7b518cf8343105f71f9d5.tar.gz",
+        //     .hash = "1220c4624f8d2d31b7eb15deb82a955c09a268185f6b0d0365b78ad568127b767bf3",
+        // },
     },
 }
