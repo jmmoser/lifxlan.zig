@@ -1,4 +1,5 @@
 const std = @import("std");
+const types = @import("types.zig");
 const constants = @import("constants.zig");
 const encoding = @import("encoding.zig");
 const router = @import("router.zig");
@@ -41,7 +42,7 @@ pub const ClientOptions = struct {
     router: *router.Router,
     defaultTimeoutMs: ?u32 = 3000,
     source: ?u32 = null,
-    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void = null,
+    onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void = null,
 };
 
 pub const Client = struct {
@@ -51,7 +52,7 @@ pub const Client = struct {
     responseHandlers: std.AutoHashMap(ResponseKey, ResponseHandler),
     disposed: bool,
     allocator: std.mem.Allocator,
-    onMessage: ?*const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void,
+    onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void,
 
     pub fn init(allocator: std.mem.Allocator, options: ClientOptions) !*Client {
         const source = options.source orelse try options.router.nextSource();
@@ -162,7 +163,7 @@ pub const Client = struct {
         try self.router.send(bytes, device.port, device.address, device.serialNumber);
     }
 
-    fn onMessage(context: *anyopaque, header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
+    fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
         const self: *Client = @ptrCast(@alignCast(context));
         if (self.onMessage) |onMessageFn| {
             onMessageFn(header, payload, serialNumber);

@@ -4,7 +4,7 @@ pub const BROADCAST = "255.255.255.255";
 // pub const BROADCAST: []const u8 = &[4]u8{ 255, 255, 255, 255 };
 pub const PORT: u16 = 56700;
 
-const ServiceType = enum(u8) {
+pub const ServiceType = enum(u8) {
     UDP = 1,
     RESERVED2 = 2,
     RESERVED3 = 3,

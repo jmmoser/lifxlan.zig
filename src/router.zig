@@ -1,25 +1,26 @@
 const std = @import("std");
+const types = @import("types.zig");
 const encoding = @import("encoding.zig");
 const utils = @import("utils.zig");
 
 pub const MAX_SOURCE: u32 = 0xFFFFFFFF;
 const MAX_SOURCE_VALUES: u32 = MAX_SOURCE - 2; // 0 and 1 are reserved
 
-const MessageHandler = *const fn (*anyopaque, encoding.Header, []const u8, [12]u8) void;
+const MessageHandler = *const fn (*anyopaque, types.Header, []const u8, [12]u8) void;
 
 pub const HandlerEntry = struct {
     context: *anyopaque,
     handler: MessageHandler,
 };
 
-fn defaultOnMessage(header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
+fn defaultOnMessage(header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
     _ = header;
     _ = payload;
     _ = serialNumber;
 }
 
 const OnSend = *const fn (message: []const u8, port: u16, address: []const u8, serialNumber: ?[12]u8) anyerror!void;
-const OnMessage = *const fn (header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void;
+const OnMessage = *const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void;
 
 pub const RouterOptions = struct {
     onSend: OnSend,
@@ -88,7 +89,7 @@ pub const Router = struct {
     }
 
     pub const ReceiveResult = struct {
-        header: encoding.Header,
+        header: types.Header,
         payload: []const u8,
         serialNumber: [12]u8,
     };

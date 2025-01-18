@@ -14,6 +14,7 @@
 /// adapt the code to write into a caller-supplied buffer. But for direct
 /// 1:1 translation from JS's "new Uint8Array", an allocator is used here.
 const std = @import("std");
+const types = @import("types.zig");
 
 ////////////////////////////////////////////////////////////////////////////////
 // Little-Endian Helpers
@@ -796,27 +797,7 @@ pub fn getPayload(bytes: []const u8) []const u8 {
     return bytes[36..];
 }
 
-pub const Header = struct {
-    bytes: []const u8,
-    size: u16,
-    protocol: u16,
-    addressable: bool,
-    tagged: bool,
-    origin: u16,
-    source: u32,
-    target: *const [6]u8,
-    reserved1: []const u8,
-    reserved2: []const u8,
-    res_required: bool,
-    ack_required: bool,
-    reserved3: u8,
-    reserved4: []const u8,
-    sequence: u8,
-    reserved5: []const u8,
-    type: u16,
-};
-
-pub fn decodeHeader(bytes: []const u8, offset: usize) !Header {
+pub fn decodeHeader(bytes: []const u8, offset: usize) !types.Header {
     if (offset + 36 > bytes.len) return error.OutOfBounds;
 
     const size = getHeaderSize(bytes, offset);

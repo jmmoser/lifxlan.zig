@@ -1,15 +1,16 @@
 const std = @import("std");
+const types = @import("types.zig");
 const network = @import("network.zig");
 // const network = @import("network");
 const router = @import("router.zig");
 const devicesMod = @import("devices.zig");
 const commands = @import("commands.zig");
-const clientMod = @import("client.zig");
+const Client = @import("client.zig");
 const encoding = @import("encoding.zig");
 const constants = @import("constants.zig");
 
 var gSock: *network.Socket = undefined;
-var client: *clientMod.Client = undefined;
+var client: *Client.Client = undefined;
 var devices: devicesMod.Devices = undefined;
 
 fn onSendFn(message: []const u8, port: u16, address: []const u8, _: ?[12]u8) anyerror!void {
@@ -56,29 +57,30 @@ pub fn main() !void {
     });
     defer devices.deinit();
 
-    client = try clientMod.Client.init(allocator, .{
-        .router = &rt,
-        .onMessage = struct {
-            fn handler(header: encoding.Header, payload: []const u8, serialNumber: [12]u8) void {
-                switch (header.type) {
-                    @intFromEnum(constants.Type.StateService) => {
-                        std.debug.print("Client received StateService message from {s} at {d}: {any}\n", .{
-                            serialNumber,
-                            header.source,
-                            payload,
-                        });
-                    },
-                    @intFromEnum(constants.Type.StateLabel) => {
-                        std.debug.print("Client received StateLabel message from {s} at {d}: {any}\n", .{
-                            serialNumber,
-                            header.source,
-                            payload,
-                        });
-                    },
-                    else => {},
-                }
+    const clientMessageHandler = struct {
+        fn handler(header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
+            switch (header.type) {
+                @intFromEnum(constants.Type.StateService) => {
+                    const serviceType: constants.ServiceType = @enumFromInt(payload[0]);
+                    std.debug.print("Client received StateService message from {s}: {s}\n", .{
+                        serialNumber,
+                        @tagName(serviceType),
+                    });
+                },
+                @intFromEnum(constants.Type.StateLabel) => {
+                    std.debug.print("Client received StateLabel message from {s}: {s}\n", .{
+                        serialNumber,
+                        payload,
+                    });
+                },
+                else => {},
             }
-        }.handler,
+        }
+    };
+
+    client = try Client.Client.init(allocator, .{
+        .router = &rt,
+        .onMessage = clientMessageHandler.handler,
     });
     defer client.deinit();
 
