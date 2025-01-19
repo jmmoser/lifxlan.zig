@@ -17,12 +17,17 @@ const commands = @import("commands.zig");
 //     // };
 // }
 
-const ResponseKey = [14]u8;
+const ResponseKey = [15]u8;
 
 fn getResponseKey(serialNumber: [12]u8, sequence: u8) !ResponseKey {
     var key: ResponseKey = undefined;
-    _ = try std.fmt.bufPrint(&key, "{s}:{d}", .{ serialNumber, sequence });
+    _ = try std.fmt.bufPrint(&key, "{s}{d}", .{ serialNumber, sequence });
     return key;
+}
+
+test "get response key" {
+    const key = try getResponseKey(constants.NO_SERIAL_NUMBER, 255);
+    try std.testing.expect(std.mem.eql(u8, &key, "000000000000255"));
 }
 
 fn incrementSequence(sequence: ?u8) u8 {
@@ -42,7 +47,8 @@ pub const ClientOptions = struct {
     router: *router.Router,
     defaultTimeoutMs: ?u32 = 3000,
     source: ?u32 = null,
-    onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void = null,
+    // onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void = null,
+    onMessage: ?types.MessageHandler = null,
 };
 
 pub const Client = struct {
@@ -52,7 +58,8 @@ pub const Client = struct {
     responseHandlers: std.AutoHashMap(ResponseKey, ResponseHandler),
     disposed: bool,
     allocator: std.mem.Allocator,
-    onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void,
+    // onMessage: ?*const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void,
+    onMessage: ?types.MessageHandler,
 
     pub fn init(allocator: std.mem.Allocator, options: ClientOptions) !*Client {
         const source = options.source orelse try options.router.nextSource();
@@ -156,8 +163,8 @@ pub const Client = struct {
         );
         defer self.allocator.free(bytes);
 
-        const key = try getResponseKey(device.serialNumber, device.sequence);
-        try self.registerResponseHandler(key, command.decode);
+        // const key = try getResponseKey(device.serialNumber, device.sequence);
+        // try self.registerResponseHandler(key, command.decode);
 
         device.sequence = incrementSequence(device.sequence);
         try self.router.send(bytes, device.port, device.address, device.serialNumber);
@@ -166,7 +173,7 @@ pub const Client = struct {
     fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
         const self: *Client = @ptrCast(@alignCast(context));
         if (self.onMessage) |onMessageFn| {
-            onMessageFn(header, payload, serialNumber);
+            onMessageFn.onMessage(header, payload, serialNumber);
         }
         const key = getResponseKey(serialNumber, header.sequence) catch return;
         if (self.responseHandlers.get(key)) |handler| {
@@ -185,7 +192,7 @@ pub const Client = struct {
         const handler = ResponseHandler{
             .handler = struct {
                 fn handle(typ: u16, _: []const u8, _: *encoding.OffsetRef) void {
-                    if (typ == @intFromEnum(constants.Type.Acknowledgement)) {
+                    if (typ == @intFromEnum(constants.CommandType.Acknowledgement)) {
                         // TODO: Handle acknowledgement
                     }
                 }
@@ -209,7 +216,7 @@ pub const Client = struct {
             .handler = struct {
                 fn handle(resCtx: *anyopaque, responseType: u16, bytes: []const u8, offsetRef: *encoding.OffsetRef) void {
                     const decodeFn: commands.Decode = @ptrCast(@alignCast(resCtx));
-                    if (responseType == @intFromEnum(constants.Type.StateUnhandled)) {
+                    if (responseType == @intFromEnum(constants.CommandType.StateUnhandled)) {
                         const requestType = encoding.decodeStateUnhandled(bytes, offsetRef) catch return;
                         // Handle unhandled request
                         std.debug.print("Unhandled request: {}\n", .{requestType});

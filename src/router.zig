@@ -83,9 +83,7 @@ pub const Router = struct {
     }
 
     pub fn send(self: *Router, message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
-        // std.debug.print("Router sending message to {?s} at {s}\n", .{ serialNumber, address });
         try self.onSend(message, port, address, serialNumber);
-        // std.debug.print("Router sent message to {?s} at {s}\n", .{ serialNumber, address });
     }
 
     pub const ReceiveResult = struct {

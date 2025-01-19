@@ -1,8 +1,6 @@
 pub const NO_TARGET: [6]u8 = [_]u8{0x00} ** 6;
-pub const NO_SERIAL_NUMBER: [12]u8 = [_]u8{0x00} ** 12;
-// pub const BROADCAST = "255.255.255.255";
+pub const NO_SERIAL_NUMBER: [12]u8 = [_]u8{'0'} ** 12;
 pub const BROADCAST: [4]u8 = [_]u8{ 255, 255, 255, 255 };
-// pub const BROADCAST: []const u8 = &[4]u8{ 255, 255, 255, 255 };
 pub const PORT: u16 = 56700;
 
 pub const ServiceType = enum(u8) {
@@ -70,7 +68,7 @@ pub const Waveform = enum(u8) {
 };
 
 /// Message types for device communication
-pub const Type = enum(u16) {
+pub const CommandType = enum(u16) {
     // Core functionality
     GetService = 2,
     StateService = 3,
@@ -123,6 +121,10 @@ pub const Type = enum(u16) {
     GetLastHevCycleResult = 148,
     StateLastHevCycleResult = 149,
 
+    // Sensor functionality
+    SensorGetAmbientLight = 401,
+    SensorStateAmbientLight = 402,
+
     // MultiZone functionality
     SetColorZones = 501,
     GetColorZones = 502,
@@ -135,11 +137,6 @@ pub const Type = enum(u16) {
     GetExtendedColorZones = 511,
     StateExtendedColorZones = 512,
 
-    // Relay functionality
-    GetRPower = 816,
-    SetRPower = 817,
-    StateRPower = 818,
-
     // Tile functionality
     GetDeviceChain = 701,
     StateDeviceChain = 702,
@@ -150,7 +147,8 @@ pub const Type = enum(u16) {
     SetTileEffect = 719,
     StateTileEffect = 720,
 
-    // Sensor functionality
-    SensorGetAmbientLight = 401,
-    SensorStateAmbientLight = 402,
+    // Relay functionality
+    GetRPower = 816,
+    SetRPower = 817,
+    StateRPower = 818,
 };

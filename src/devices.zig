@@ -82,6 +82,7 @@ pub const Devices = struct {
             entry.value_ptr.deinit();
         }
         self.deviceResolvers.deinit();
+        self.* = undefined;
     }
 
     pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: [4]u8, target: [6]u8) !*Device {

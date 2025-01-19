@@ -12,7 +12,7 @@ const utils = @import("utils.zig");
 
 var gSock: *network.Socket = undefined;
 var client: *Client.Client = undefined;
-var devices: devicesMod.Devices = undefined;
+// var devices: devicesMod.Devices = undefined;
 const stdout = std.io.getStdOut().writer();
 
 fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
@@ -56,31 +56,35 @@ pub fn main() !void {
     });
     defer rt.deinit();
 
-    devices = devicesMod.Devices.init(allocator, .{
+    var devices = devicesMod.Devices.init(allocator, .{
         .onAdded = onDeviceAdded,
     });
     defer devices.deinit();
 
-    const clientMessageHandler = struct {
-        fn handler(header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
+    const ClientMessageHandler = struct {
+        devices: *devicesMod.Devices,
+
+        pub fn onMessage(self: *const @This(), header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
+            _ = self;
+
             switch (header.type) {
-                @intFromEnum(constants.Type.StateService) => {
+                @intFromEnum(constants.CommandType.StateService) => {
                     // const serviceType: constants.ServiceType = @enumFromInt(payload[0]);
                     // std.debug.print("Client received StateService message from {s}: {s}\n", .{
                     //     serialNumber,
                     //     @tagName(serviceType),
                     // });
                 },
-                @intFromEnum(constants.Type.StateLabel) => {
+                @intFromEnum(constants.CommandType.StateLabel) => {
                     std.debug.print("Client received StateLabel message from {s}: {s}\n", .{
                         serialNumber,
                         payload,
                     });
                 },
-                @intFromEnum(constants.Type.LightState) => {
-                    if (devices.get(serialNumber)) |device| {
-                        client.send(commands.GetColorCommand(), device) catch {};
-                    }
+                @intFromEnum(constants.CommandType.LightState) => {
+                    // if (self.devices.get(serialNumber)) |device| {
+                    //     client.send(commands.GetColorCommand(), device) catch {};
+                    // }
 
                     var offsetRef = encoding.OffsetRef{ .current = 0 };
                     const color = encoding.decodeLightState(payload, &offsetRef) catch {
@@ -113,30 +117,31 @@ pub fn main() !void {
 
     client = try Client.Client.init(allocator, .{
         .router = &rt,
-        .onMessage = clientMessageHandler.handler,
+        .onMessage = types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
     });
     defer client.deinit();
 
-    var discover_thread = try std.Thread.spawn(.{}, discoverDevicesThread, .{});
+    const discover_thread = try std.Thread.spawn(.{}, discoverDevicesThread, .{});
+    const getLightStatesThread = try std.Thread.spawn(.{}, getLightStates, .{&devices});
 
-    var read_thread = try std.Thread.spawn(.{}, socketReader, .{
+    const read_thread = try std.Thread.spawn(.{}, socketReader, .{
         &sock,
         &rt,
+        &devices,
     });
     read_thread.join();
     discover_thread.join();
+    getLightStatesThread.join();
 }
 
-const ReadContext = struct {
-    sock: *network.Socket,
-    router: *router.Router,
-};
-
-fn socketReader(sock: *network.Socket, rt: *router.Router) !void {
+fn socketReader(sock: *network.Socket, rt: *router.Router, devices: *devicesMod.Devices) !void {
     var buffer: [1024]u8 = undefined;
     while (true) {
         const recv_result = try sock.receiveFrom(&buffer);
         const result = try rt.receive(buffer[0..recv_result.numberOfBytes]);
+        // std.debug.print("received message type: {d}\n", .{result.header.type});
+        // const serviceType: constants.CommandType = @enumFromInt(result.header.type);
+        // std.debug.print("received message payload: {s}\n", .{@tagName(serviceType)});
 
         _ = devices.register(result.serialNumber, recv_result.sender.port, recv_result.sender.address.ipv4.value, result.header.target.*) catch {};
     }
@@ -144,8 +149,19 @@ fn socketReader(sock: *network.Socket, rt: *router.Router) !void {
 
 fn discoverDevicesThread() !void {
     while (true) {
-        // std.debug.print("Discovering devices\n", .{});
         try client.broadcast(commands.GetServiceCommand());
         std.time.sleep(5 * 1000 * 1000 * 1000);
+    }
+}
+
+fn getLightStates(devices: *devicesMod.Devices) void {
+    while (true) {
+        var value_iterator = devices.knownDevices.valueIterator();
+        while (value_iterator.next()) |value| {
+            client.send(commands.GetColorCommand(), value.*) catch |err| {
+                std.debug.print("Error sending GetColorCommand: {any}\n", .{err});
+            };
+        }
+        std.time.sleep(1 * 1000 * 1000 * 1000);
     }
 }

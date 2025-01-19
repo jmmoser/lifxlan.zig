@@ -14,7 +14,7 @@ fn noopDecode(_: []const u8, _: *encoding.OffsetRef) anyerror!void {}
 
 pub fn GetServiceCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetService),
+        .type = @intFromEnum(constants.CommandType.GetService),
         // .decode = encoding.decodeStateService,
         .decode = struct {
             fn wrap(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
@@ -26,28 +26,28 @@ pub fn GetServiceCommand() Command {
 
 pub fn GetHostFirmwareCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetHostFirmware),
+        .type = @intFromEnum(constants.CommandType.GetHostFirmware),
         .decode = encoding.decodeStateHostFirmware,
     };
 }
 
 pub fn GetWifiInfoCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetWifiInfo),
+        .type = @intFromEnum(constants.CommandType.GetWifiInfo),
         .decode = encoding.decodeStateWifiInfo,
     };
 }
 
 pub fn GetWifiFirmwareCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetWifiFirmware),
+        .type = @intFromEnum(constants.CommandType.GetWifiFirmware),
         .decode = encoding.decodeStateWifiFirmware,
     };
 }
 
 pub fn GetColorCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetColor),
+        .type = @intFromEnum(constants.CommandType.GetColor),
         // .decode = encoding.decodeLightState,
         .decode = noopDecode,
     };
@@ -55,7 +55,7 @@ pub fn GetColorCommand() Command {
 
 pub fn GetPowerCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetPower),
+        .type = @intFromEnum(constants.CommandType.GetPower),
         .decode = encoding.decodeStatePower,
     };
 }
@@ -70,7 +70,7 @@ pub fn SetPowerCommand(allocator: std.mem.Allocator, power: anytype) !Command {
     std.mem.writeIntLittle(u16, payload[0..2], value);
 
     return .{
-        .type = @intFromEnum(constants.Type.SetPower),
+        .type = @intFromEnum(constants.CommandType.SetPower),
         .payload = payload,
         .decode = encoding.decodeStatePower,
     };
@@ -78,7 +78,7 @@ pub fn SetPowerCommand(allocator: std.mem.Allocator, power: anytype) !Command {
 
 pub fn GetLabelCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetLabel),
+        .type = @intFromEnum(constants.CommandType.GetLabel),
         // .decode = encoding.decodeStateLabel,
         .decode = struct {
             fn wrap(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
@@ -90,7 +90,7 @@ pub fn GetLabelCommand() Command {
 
 pub fn SetLabelCommand(allocator: std.mem.Allocator, label: []const u8) !Command {
     return .{
-        .type = @intFromEnum(constants.Type.SetLabel),
+        .type = @intFromEnum(constants.CommandType.SetLabel),
         .payload = try encoding.encodeString(allocator, label, 32),
         .decode = encoding.decodeStateLabel,
     };
@@ -98,21 +98,21 @@ pub fn SetLabelCommand(allocator: std.mem.Allocator, label: []const u8) !Command
 
 pub fn GetVersionCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetVersion),
+        .type = @intFromEnum(constants.CommandType.GetVersion),
         .decode = encoding.decodeStateVersion,
     };
 }
 
 pub fn GetInfoCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetInfo),
+        .type = @intFromEnum(constants.CommandType.GetInfo),
         .decode = encoding.decodeStateInfo,
     };
 }
 
 pub fn SetRebootCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.SetReboot),
+        .type = @intFromEnum(constants.CommandType.SetReboot),
         .decode = struct {
             fn noop(_: []const u8, _: *encoding.OffsetRef) !void {}
         }.noop,
@@ -121,7 +121,7 @@ pub fn SetRebootCommand() Command {
 
 pub fn GetLocationCommand() Command {
     return .{
-        .type = @intFromEnum(constants.Type.GetLocation),
+        .type = @intFromEnum(constants.CommandType.GetLocation),
         .decode = encoding.decodeStateLocation,
     };
 }
@@ -150,7 +150,7 @@ pub fn SetLocationCommand(
     try encoding.encodeTimestampTo(payload[48..], updatedAt);
 
     return .{
-        .type = @intFromEnum(constants.Type.SetLocation),
+        .type = @intFromEnum(constants.CommandType.SetLocation),
         .payload = payload,
         .decode = encoding.decodeStateLocation,
     };
@@ -177,7 +177,7 @@ pub fn SetColorCommand(
     std.mem.writeIntLittle(u32, payload[9..13], duration);
 
     return .{
-        .type = @intFromEnum(constants.Type.SetColor),
+        .type = @intFromEnum(constants.CommandType.SetColor),
         .payload = payload,
         .decode = encoding.decodeLightState,
     };
@@ -210,7 +210,7 @@ pub fn SetWaveformCommand(
     payload[20] = @intFromEnum(waveform);
 
     return .{
-        .type = @intFromEnum(constants.Type.SetWaveform),
+        .type = @intFromEnum(constants.CommandType.SetWaveform),
         .payload = payload,
         .decode = encoding.decodeLightState,
     };
