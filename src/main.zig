@@ -78,6 +78,11 @@ pub fn main() !void {
                     });
                 },
                 @intFromEnum(constants.Type.LightState) => {
+                    // const device = try devices.get(serialNumber);
+                    if (try devices.get(serialNumber)) |device| {
+                        client.send(commands.GetColorCommand(), device) catch {};
+                    }
+
                     var offsetRef = encoding.OffsetRef{ .current = 0 };
                     const color = encoding.decodeLightState(payload, &offsetRef) catch {
                         return;

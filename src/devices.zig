@@ -9,13 +9,13 @@ pub const Device = struct {
     serialNumber: [12]u8,
     sequence: u8,
 
-    pub fn init(config: struct {
+    pub fn init(allocator: std.mem.Allocator, config: struct {
         address: [4]u8,
         serialNumber: ?[12]u8 = null,
         port: ?u16 = null,
         target: ?[6]u8 = null,
         sequence: ?u8 = null,
-    }) !Device {
+    }) !*Device {
         const port = config.port orelse constants.PORT;
 
         var target: [6]u8 = undefined;
@@ -27,13 +27,22 @@ pub const Device = struct {
             target = constants.NO_TARGET;
         }
 
-        return Device{
+        const device = try allocator.create(Device);
+        errdefer allocator.destroy(device);
+
+        device.* = .{
             .address = config.address,
             .port = port,
             .target = target,
             .serialNumber = config.serialNumber orelse constants.NO_SERIAL_NUMBER,
             .sequence = config.sequence orelse 0,
         };
+
+        return device;
+    }
+
+    pub fn deinit(self: *Device, allocator: std.mem.Allocator) void {
+        allocator.destroy(self);
     }
 };
 
@@ -48,20 +57,24 @@ pub const DevicesOptions = struct {
 
 pub const Devices = struct {
     allocator: std.mem.Allocator,
-    knownDevices: std.StringHashMap(Device),
+    knownDevices: std.StringHashMap(*Device),
     deviceResolvers: std.StringHashMap(std.ArrayList(DeviceCallback)),
     options: DevicesOptions,
 
     pub fn init(allocator: std.mem.Allocator, options: DevicesOptions) Devices {
         return .{
             .allocator = allocator,
-            .knownDevices = std.StringHashMap(Device).init(allocator),
+            .knownDevices = std.StringHashMap(*Device).init(allocator),
             .deviceResolvers = std.StringHashMap(std.ArrayList(DeviceCallback)).init(allocator),
             .options = options,
         };
     }
 
     pub fn deinit(self: *Devices) void {
+        var it = self.knownDevices.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.*.deinit(self.allocator);
+        }
         self.knownDevices.deinit();
 
         var resolvers_it = self.deviceResolvers.iterator();
@@ -74,7 +87,7 @@ pub const Devices = struct {
     pub fn register(self: *Devices, serialNumber: [12]u8, port: u16, address: [4]u8, target: [6]u8) !*Device {
         const serialNumberSlice: []const u8 = serialNumber[0..];
 
-        if (self.knownDevices.getPtr(serialNumberSlice)) |existing| {
+        if (self.knownDevices.get(serialNumberSlice)) |existing| {
             if (port != existing.port or !std.mem.eql(u8, &address, &existing.address)) {
                 existing.port = port;
                 // existing.address = try self.allocator.dupe(u8, address);
@@ -86,7 +99,7 @@ pub const Devices = struct {
             return existing;
         }
 
-        var device = try Device.init(.{
+        const device = try Device.init(self.allocator, .{
             .serialNumber = serialNumber,
             .port = port,
             .address = address,
@@ -96,17 +109,17 @@ pub const Devices = struct {
         try self.knownDevices.put(serialNumberSlice, device);
 
         if (self.options.onAdded) |callback| {
-            callback(&device);
+            callback(device);
         }
 
         if (self.deviceResolvers.get(&serialNumber)) |resolvers| {
             for (resolvers.items) |resolver| {
-                resolver(&device);
+                resolver(device);
             }
             _ = self.deviceResolvers.remove(&serialNumber);
         }
 
-        return &device;
+        return device;
     }
 
     pub fn remove(self: *Devices, serialNumber: [12]u8) bool {
@@ -129,42 +142,29 @@ pub const Devices = struct {
         Aborted,
     };
 
-    pub const GetDeviceResult = struct {
-        device: Device,
-        frame: @Frame(getDeviceAsync),
-    };
-
-    pub fn get(self: *Devices, serialNumber: [12]u8, timeout_ms: ?u32) !GetDeviceResult {
+    pub fn get(self: *Devices, serialNumber: [12]u8) !?*Device { //, timeout_ms: ?u32*/) !?Device {
         const serialNumberSlice: []const u8 = serialNumber[0..];
 
         if (self.knownDevices.get(serialNumberSlice)) |device| {
-            return GetDeviceResult{
-                .device = device,
-                .frame = undefined,
-            };
+            return device;
         }
 
-        var frame = async self.getDeviceAsync(serialNumber);
-        const timeout = timeout_ms orelse self.options.defaultTimeoutMs;
+        return null;
 
-        if (timeout > 0) {
-            const timer = try std.time.Timer.start();
-            while (timer.read() < timeout * std.time.ns_per_ms) {
-                if (self.knownDevices.get(serialNumberSlice)) |device| {
-                    return GetDeviceResult{
-                        .device = device,
-                        .frame = frame,
-                    };
-                }
-                std.time.sleep(1 * std.time.ns_per_ms);
-            }
-            return error.Timeout;
-        }
+        // const timeout = timeout_ms orelse self.options.defaultTimeoutMs;
 
-        return GetDeviceResult{
-            .device = await frame,
-            .frame = frame,
-        };
+        // if (timeout > 0) {
+        //     const timer = try std.time.Timer.start();
+        //     while (timer.read() < timeout * std.time.ns_per_ms) {
+        //         if (self.knownDevices.get(serialNumberSlice)) |device| {
+        //             return device;
+        //         }
+        //         std.time.sleep(1 * std.time.ns_per_ms);
+        //     }
+        //     return error.Timeout;
+        // }
+
+        // return null;
     }
 
     fn getDeviceAsync(self: *Devices, serialNumber: [12]u8) !Device {
