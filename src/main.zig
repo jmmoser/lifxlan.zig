@@ -78,8 +78,7 @@ pub fn main() !void {
                     });
                 },
                 @intFromEnum(constants.Type.LightState) => {
-                    // const device = try devices.get(serialNumber);
-                    if (try devices.get(serialNumber)) |device| {
+                    if (devices.get(serialNumber)) |device| {
                         client.send(commands.GetColorCommand(), device) catch {};
                     }
 
@@ -91,15 +90,16 @@ pub fn main() !void {
                     const rgb = utils.hsbToRgb(color.hue, color.saturation, color.brightness);
 
                     const sty: ansi.style.Style = .{ .foreground = .{ .RGB = .{ .r = rgb.r, .g = rgb.g, .b = rgb.b } } };
+                    stdout.print("{s}: ", .{serialNumber}) catch {};
                     ansi.format.updateStyle(stdout, sty, null) catch {};
-                    stdout.print("{s}", .{"███████████"}) catch {};
+                    stdout.print("{s}\n", .{"███████████"}) catch {};
                     ansi.format.updateStyle(stdout, .{}, sty) catch {};
 
-                    std.debug.print("Client received LightState message from {s} with label '{s}': {any}\n", .{
-                        serialNumber,
-                        color.label,
-                        color,
-                    });
+                    // std.debug.print("Client received LightState message from {s} with label '{s}': {any}\n", .{
+                    //     serialNumber,
+                    //     color.label,
+                    //     color,
+                    // });
                 },
                 else => {
                     std.debug.print("Client received unhandled message from {s}: {any}\n", .{

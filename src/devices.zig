@@ -90,7 +90,6 @@ pub const Devices = struct {
         if (self.knownDevices.get(serialNumberSlice)) |existing| {
             if (port != existing.port or !std.mem.eql(u8, &address, &existing.address)) {
                 existing.port = port;
-                // existing.address = try self.allocator.dupe(u8, address);
                 existing.address = address;
                 if (self.options.onChanged) |callback| {
                     callback(existing);
@@ -106,7 +105,7 @@ pub const Devices = struct {
             .target = target,
         });
 
-        try self.knownDevices.put(serialNumberSlice, device);
+        try self.knownDevices.put(device.serialNumber[0..], device);
 
         if (self.options.onAdded) |callback| {
             callback(device);
@@ -142,7 +141,7 @@ pub const Devices = struct {
         Aborted,
     };
 
-    pub fn get(self: *Devices, serialNumber: [12]u8) !?*Device { //, timeout_ms: ?u32*/) !?Device {
+    pub fn get(self: *Devices, serialNumber: [12]u8) ?*Device { //, timeout_ms: ?u32*/) !?*Device {
         const serialNumberSlice: []const u8 = serialNumber[0..];
 
         if (self.knownDevices.get(serialNumberSlice)) |device| {
