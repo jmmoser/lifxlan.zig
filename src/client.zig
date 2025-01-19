@@ -6,17 +6,6 @@ const router = @import("router.zig");
 const devices = @import("devices.zig");
 const commands = @import("commands.zig");
 
-// fn getResponseKey(serialNumber: [12]u8, sequence: u8) ![64]u8 {
-//     var key: [64]u8 = undefined;
-//     const result = try std.fmt.bufPrint(&key, "{s}:{d}", .{ serialNumber, sequence });
-//     @memcpy(key[0..result.len], result);
-//     return key;
-//     // var key: [64]u8 = undefined;
-//     // return std.fmt.bufPrint(&key, "{s}:{d}", .{ serialNumber, sequence }) catch |err| {
-//     //     return err;
-//     // };
-// }
-
 const ResponseKey = [15]u8;
 
 fn getResponseKey(serialNumber: [12]u8, sequence: u8) !ResponseKey {
@@ -175,7 +164,7 @@ pub const Client = struct {
         if (self.onMessage) |onMessageFn| {
             onMessageFn.onMessage(header, payload, serialNumber);
         }
-        const key = getResponseKey(serialNumber, header.sequence) catch return;
+        const key = try getResponseKey(serialNumber, header.sequence);
         if (self.responseHandlers.get(key)) |handler| {
             var offsetRef = encoding.OffsetRef{ .current = 0 };
             // const decoded = handler.
