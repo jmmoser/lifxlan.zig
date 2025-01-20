@@ -12,7 +12,6 @@ const utils = @import("utils.zig");
 
 var gSock: *network.Socket = undefined;
 var client: *Client.Client = undefined;
-// var devices: devicesMod.Devices = undefined;
 const stdout = std.io.getStdOut().writer();
 
 fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
