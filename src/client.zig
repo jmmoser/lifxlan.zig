@@ -164,7 +164,7 @@ pub const Client = struct {
         if (self.onMessage) |onMessageFn| {
             onMessageFn.onMessage(header, payload, serialNumber);
         }
-        const key = try getResponseKey(serialNumber, header.sequence);
+        const key = getResponseKey(serialNumber, header.sequence) catch return;
         if (self.responseHandlers.get(key)) |handler| {
             var offsetRef = encoding.OffsetRef{ .current = 0 };
             // const decoded = handler.
