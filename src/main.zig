@@ -142,7 +142,7 @@ fn socketReader(sock: *network.Socket, rt: *router.Router, devices: *devicesMod.
         // const serviceType: constants.CommandType = @enumFromInt(result.header.type);
         // std.debug.print("received message payload: {s}\n", .{@tagName(serviceType)});
 
-        _ = devices.register(result.serialNumber, recv_result.sender.port, recv_result.sender.address.ipv4.value, result.header.target.*) catch {};
+        _ = devices.register(result.serialNumber, recv_result.sender.port, recv_result.sender.address.ipv4.value, result.header.target) catch {};
     }
 }
 

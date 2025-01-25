@@ -14,6 +14,8 @@ var gSock: *network.Socket = undefined;
 var client: *Client.Client = undefined;
 const stdout = std.io.getStdOut().writer();
 
+const TARGET: [6]u8 = [_]u8{ 0x97, 0x98, 0x99, 0x100, 0x101, 0x102 };
+
 fn onRespond(allocator: std.mem.Allocator, commandType: u16, payload: []const u8, address: [4]u8, port: u16) anyerror!void {
     const message = encoding.encode(allocator, false, 0, TARGET, false, false, 0, commandType, payload) catch |err| {
         std.debug.print("Failed to encode message: {any}\n", .{err});
@@ -39,8 +41,6 @@ fn onDeviceAdded(device: *devicesMod.Device) void {
 }
 
 pub fn main() !void {
-    const TARGET: [6]u8 = [_]u8{ 0x97, 0x98, 0x99, 0x100, 0x101, 0x102 };
-
     try network.init();
     defer network.deinit();
 

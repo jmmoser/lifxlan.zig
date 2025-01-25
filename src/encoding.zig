@@ -189,7 +189,7 @@ pub fn encode(
     allocator: std.mem.Allocator,
     tagged: bool,
     source: u32,
-    target: []const u8,
+    target: [6]u8,
     resRequired: bool,
     ackRequired: bool,
     sequence: u8,
@@ -203,9 +203,6 @@ pub fn encode(
     const payloadLen = if (payload) |pl| pl.len else 0;
 
     const size = 36 + payloadLen;
-    if (target.len != 6 and target.len != 14) {
-        return error.Invalid;
-    }
 
     var buf = try allocator.alloc(u8, size);
     @memset(buf, 0);
@@ -759,8 +756,10 @@ pub fn getHeaderSource(bytes: []const u8, offset: usize) u32 {
     return readUint32LE(bytes, offset + 4);
 }
 
-pub fn getHeaderTarget(bytes: []const u8, offset: usize) *const [6]u8 {
-    return bytes[offset + 8 .. offset + 14][0..6];
+pub fn getHeaderTarget(bytes: []const u8, offset: usize) [6]u8 {
+    var result: [6]u8 = undefined;
+    @memcpy(&result, bytes[offset + 8 .. offset + 14]);
+    return result;
 }
 
 pub fn getHeaderResponseFlags(bytes: []const u8, offset: usize) u8 {

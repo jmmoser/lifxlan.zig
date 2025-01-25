@@ -6,7 +6,7 @@ pub const Header = struct {
     tagged: bool,
     origin: u16,
     source: u32,
-    target: *const [6]u8,
+    target: [6]u8,
     reserved1: []const u8,
     reserved2: []const u8,
     res_required: bool,

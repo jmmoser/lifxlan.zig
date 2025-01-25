@@ -120,26 +120,33 @@ pub fn getRssiStatus(rssi: i32) RssiStatus {
     return .none;
 }
 
-/// Convert signal strength to RSSI value
 pub fn convertSignalToRssi(signal: f32) i32 {
     return @intFromFloat(@floor(10.0 * @log10(signal) + 0.5));
 }
 
-pub fn convertTargetToSerialNumber(target: *const [6]u8) [12]u8 {
+pub fn convertTargetToSerialNumber(target: [6]u8) [12]u8 {
     return std.fmt.bytesToHex(target, .lower);
 }
 
-/// Convert serial number string to target bytes
-pub fn convertSerialNumberToTarget(serialNumber: [12]u8) ![6]u8 {
+pub fn convertSerialNumberToTarget(serialNumber: [12]u8) [6]u8 {
     var target: [6]u8 = undefined;
     var i: usize = 0;
     while (i < 6) : (i += 1) {
         const offset = 2 * i;
-        const byte_str = serialNumber[offset .. offset + 2];
-        target[i] = try std.fmt.parseInt(u8, byte_str, 16);
+        const high = charToInt(serialNumber[offset]);
+        const low = charToInt(serialNumber[offset + 1]);
+        target[i] = (high << 4) | low;
     }
-
     return target;
+}
+
+fn charToInt(c: u8) u8 {
+    return switch (c) {
+        '0'...'9' => c - '0',
+        'a'...'f' => c - 'a' + 10,
+        'A'...'F' => c - 'A' + 10,
+        else => unreachable,
+    };
 }
 
 test "hsbToRgb" {
@@ -158,13 +165,13 @@ test "rgbToHsb" {
 
 test "convertTargetToSerialNumber" {
     const target = [_]u8{ 0xd0, 0x73, 0xd5, 0x00, 0x11, 0x22 };
-    const serial = convertTargetToSerialNumber(&target);
+    const serial = convertTargetToSerialNumber(target);
     try std.testing.expectEqualStrings("d073d5001122", &serial);
 }
 
 test "convertSerialNumberToTarget" {
-    const serial = "d073d5001122";
-    const target = try convertSerialNumberToTarget(serial);
+    const serial = "d073d5001122".*;
+    const target = convertSerialNumberToTarget(serial);
     try std.testing.expectEqual(@as(u8, 0xd0), target[0]);
     try std.testing.expectEqual(@as(u8, 0x73), target[1]);
     try std.testing.expectEqual(@as(u8, 0xd5), target[2]);

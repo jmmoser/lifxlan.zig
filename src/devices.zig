@@ -22,7 +22,7 @@ pub const Device = struct {
         if (config.target) |t| {
             target = t;
         } else if (config.serialNumber) |sn| {
-            target = try utils.convertSerialNumberToTarget(sn);
+            target = utils.convertSerialNumberToTarget(sn);
         } else {
             target = constants.NO_TARGET;
         }
