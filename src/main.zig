@@ -2,16 +2,17 @@ const std = @import("std");
 const network = @import("network");
 const ansi = @import("ansi-term");
 const types = @import("types.zig");
-const router = @import("router.zig");
-const devicesMod = @import("devices.zig");
-const commands = @import("commands.zig");
+const Router = @import("router.zig");
+const Device = @import("device.zig");
+const Devices = @import("devices.zig");
 const Client = @import("client.zig");
+const commands = @import("commands.zig");
 const encoding = @import("encoding.zig");
 const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
 var gSock: *network.Socket = undefined;
-var client: *Client.Client = undefined;
+var client: *Client = undefined;
 const stdout = std.io.getStdOut().writer();
 
 fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
@@ -23,7 +24,7 @@ fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u
     };
 }
 
-fn onDeviceAdded(device: *devicesMod.Device) void {
+fn onDeviceAdded(device: *Device) void {
     // std.debug.print("Device added: {s}\n", .{device.serialNumber});
 
     client.send(commands.GetLabelCommand(), device) catch |err| {
@@ -49,19 +50,19 @@ pub fn main() !void {
 
     gSock = &sock;
 
-    var rt = try router.Router.init(allocator, .{
+    var router = try Router.init(allocator, .{
         .handlers = null,
         .onSend = onSendFn,
     });
-    defer rt.deinit();
+    defer router.deinit();
 
-    var devices = devicesMod.Devices.init(allocator, .{
+    var devices = Devices.init(allocator, .{
         .onAdded = onDeviceAdded,
     });
     defer devices.deinit();
 
     const ClientMessageHandler = struct {
-        devices: *devicesMod.Devices,
+        devices: *Devices,
 
         pub fn onMessage(self: *const @This(), header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
             _ = self;
@@ -114,8 +115,8 @@ pub fn main() !void {
         }
     };
 
-    client = try Client.Client.init(allocator, .{
-        .router = &rt,
+    client = try Client.init(allocator, .{
+        .router = &router,
         .onMessage = types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
     });
     defer client.deinit();
@@ -125,7 +126,7 @@ pub fn main() !void {
 
     const read_thread = try std.Thread.spawn(.{}, socketReader, .{
         &sock,
-        &rt,
+        &router,
         &devices,
     });
     read_thread.join();
@@ -133,11 +134,11 @@ pub fn main() !void {
     getLightStatesThread.join();
 }
 
-fn socketReader(sock: *network.Socket, rt: *router.Router, devices: *devicesMod.Devices) !void {
+fn socketReader(sock: *network.Socket, router: *Router, devices: *Devices) !void {
     var buffer: [1024]u8 = undefined;
     while (true) {
         const recv_result = try sock.receiveFrom(&buffer);
-        const result = try rt.receive(buffer[0..recv_result.numberOfBytes]);
+        const result = try router.receive(buffer[0..recv_result.numberOfBytes]);
         // std.debug.print("received message type: {d}\n", .{result.header.type});
         // const serviceType: constants.CommandType = @enumFromInt(result.header.type);
         // std.debug.print("received message payload: {s}\n", .{@tagName(serviceType)});
@@ -153,7 +154,7 @@ fn discoverDevicesThread() !void {
     }
 }
 
-fn getLightStates(devices: *devicesMod.Devices) void {
+fn getLightStates(devices: *Devices) void {
     while (true) {
         var value_iterator = devices.knownDevices.valueIterator();
         while (value_iterator.next()) |value| {
