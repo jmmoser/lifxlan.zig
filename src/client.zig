@@ -82,8 +82,10 @@ pub fn deinit(self: *Client) void {
 }
 
 pub fn broadcast(self: *Client, command: commands.Command) !void {
-    const bytes = try encoding.encode(
-        self.allocator,
+    var buffer: [1024]u8 = undefined;
+
+    encoding.encode(
+        &buffer,
         true,
         self.source,
         constants.NO_TARGET,
@@ -93,14 +95,15 @@ pub fn broadcast(self: *Client, command: commands.Command) !void {
         command.type,
         command.payload,
     );
-    defer self.allocator.free(bytes);
 
-    try self.router.send(bytes, constants.PORT, constants.BROADCAST, null);
+    try self.router.send(&buffer, constants.PORT, constants.BROADCAST, null);
 }
 
 pub fn unicast(self: *Client, command: commands.Command, device: Device) !void {
-    const bytes = try encoding.encode(
-        self.allocator,
+    var buffer: [1024]u8 = undefined;
+
+    encoding.encode(
+        &buffer,
         false,
         self.source,
         &device.target,
@@ -110,15 +113,16 @@ pub fn unicast(self: *Client, command: commands.Command, device: Device) !void {
         command.type,
         command.payload,
     );
-    defer self.allocator.free(bytes);
 
-    self.router.send(bytes, device.port, device.address, device.serialNumber);
+    self.router.send(&buffer, device.port, device.address, device.serialNumber);
     device.sequence = incrementSequence(device.sequence);
 }
 
 pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device: Device) !void {
-    const bytes = try encoding.encode(
-        self.allocator,
+    var buffer: [1024]u8 = undefined;
+
+    encoding.encode(
+        &buffer,
         false,
         self.source,
         &device.target,
@@ -128,18 +132,19 @@ pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device:
         command.type,
         command.payload,
     );
-    defer self.allocator.free(bytes);
 
     const key = try getResponseKey(device.serialNumber, device.sequence);
     try self.registerAckHandler(key);
 
     device.sequence = incrementSequence(device.sequence);
-    self.router.send(bytes, device.port, device.address, device.serialNumber);
+    self.router.send(&buffer, device.port, device.address, device.serialNumber);
 }
 
 pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
-    const bytes = try encoding.encode(
-        self.allocator,
+    var buffer: [1024]u8 = undefined;
+
+    encoding.encode(
+        &buffer,
         false,
         self.source,
         device.target,
@@ -149,13 +154,12 @@ pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
         command.type,
         command.payload,
     );
-    defer self.allocator.free(bytes);
 
     // const key = try getResponseKey(device.serialNumber, device.sequence);
     // try self.registerResponseHandler(key, command.decode);
 
     device.sequence = incrementSequence(device.sequence);
-    try self.router.send(bytes, device.port, device.address, device.serialNumber);
+    try self.router.send(&buffer, device.port, device.address, device.serialNumber);
 }
 
 fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
@@ -166,7 +170,7 @@ fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, ser
     const key = getResponseKey(serialNumber, header.sequence) catch return;
     if (self.responseHandlers.get(key)) |handler| {
         var offsetRef = encoding.OffsetRef{ .current = 0 };
-        // const decoded = handler.
+
         handler.handler(handler.context, header.type, payload, &offsetRef);
         _ = self.responseHandlers.remove(key);
     }

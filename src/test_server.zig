@@ -29,13 +29,13 @@ const LightStatePayload = [_]u8{
 };
 
 fn encodeResponse(
-    allocator: std.mem.Allocator,
+    buffer: []u8,
     req: []const u8,
     commandType: u16,
     payload: ?[]const u8,
-) ![]u8 {
-    return encoding.encode(
-        allocator,
+) void {
+    encoding.encode(
+        buffer,
         encoding.getHeaderTagged(req, 0),
         encoding.getHeaderSource(req, 0),
         TARGET,
@@ -49,9 +49,9 @@ fn encodeResponse(
 
 const TARGET: [6]u8 = [_]u8{ 0x98, 0x76, 0x54, 0x32, 0x10, 0xcd };
 pub fn main() !void {
-    var fixedBuffer: [1000]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&fixedBuffer);
-    const allocator = fba.allocator();
+    // var fixedBuffer: [1000]u8 = undefined;
+    // var fba = std.heap.FixedBufferAllocator.init(&fixedBuffer);
+    // const allocator = fba.allocator();
 
     // const StateServiceResponse = encoding.encode(allocator, false, 0, TARGET, false, false, 0, @intFromEnum(constants.CommandType.StateService), &StateServicePayload) catch |err| {
     //     std.debug.print("Failed to encode response: {any}\n", .{err});
@@ -80,12 +80,10 @@ pub fn main() !void {
         const responseFlags = encoding.getHeaderResponseFlags(slice, 0);
         const ackRequired = encoding.getHeaderAcknowledgeRequired(responseFlags);
         if (ackRequired) {
-            const message = encodeResponse(allocator, slice, @intFromEnum(constants.CommandType.Acknowledgement), null) catch |err| {
-                std.debug.print("Failed to encode response: {any}\n", .{err});
-                continue;
-            };
-            defer allocator.free(message);
-            _ = sock.sendTo(recv_result.sender, message) catch |err| {
+            var responseBuffer: [1024]u8 = undefined;
+            encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.Acknowledgement), null);
+
+            _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
                 std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
             };
         }
@@ -93,27 +91,20 @@ pub fn main() !void {
         switch (encoding.getHeaderType(slice, 0)) {
             @intFromEnum(constants.CommandType.GetService) => {
                 std.debug.print("Received GetService from {any}\n", .{recv_result.sender});
+                var responseBuffer: [1024]u8 = undefined;
+                encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateService), &StateServicePayload);
 
-                const res = encodeResponse(allocator, slice, @intFromEnum(constants.CommandType.StateService), &StateServicePayload) catch |err| {
-                    std.debug.print("Failed to encode response: {any}\n", .{err});
-                    continue;
-                };
-                defer allocator.free(res);
-
-                _ = sock.sendTo(recv_result.sender, res) catch |err| {
+                _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
                     std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
                 };
             },
             @intFromEnum(constants.CommandType.GetColor) => {
                 std.debug.print("Received GetColor from {any}\n", .{recv_result.sender});
 
-                const res = encodeResponse(allocator, slice, @intFromEnum(constants.CommandType.LightState), &LightStatePayload) catch |err| {
-                    std.debug.print("Failed to encode response: {any}\n", .{err});
-                    continue;
-                };
-                defer allocator.free(res);
+                var responseBuffer: [1024]u8 = undefined;
+                encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.LightState), &LightStatePayload);
 
-                _ = sock.sendTo(recv_result.sender, res) catch |err| {
+                _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
                     std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
                 };
             },

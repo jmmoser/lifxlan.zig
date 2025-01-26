@@ -186,7 +186,7 @@ pub fn encodeTimestampTo(bytes: []u8, offset: usize, date: std.time.Time) void {
 }
 
 pub fn encode(
-    allocator: std.mem.Allocator,
+    buf: []u8,
     tagged: bool,
     source: u32,
     target: [6]u8,
@@ -195,7 +195,7 @@ pub fn encode(
     sequence: u8,
     msgType: u16,
     payload: ?[]const u8,
-) ![]u8 {
+) void {
     const protocol = 1024; // 0x400
     const addressable = 1;
     const origin: u16 = 0;
@@ -204,7 +204,7 @@ pub fn encode(
 
     const size = 36 + payloadLen;
 
-    var buf = try allocator.alloc(u8, size);
+    // TODO: make this only have to set the bytes that actually need to be set to 0
     @memset(buf, 0);
 
     // Frame Header
@@ -220,13 +220,14 @@ pub fn encode(
     writeUint32LE(buf, 4, source);
 
     // Frame Address
-    if (target.len == 6) {
-        @memcpy(buf[8 .. 8 + 6], target[0..6]);
-        // Leave the rest as zeros (already done by @memset above)
-    } else {
-        // Copy all 14 bytes if provided
-        @memcpy(buf[8 .. 8 + 14], target[0..14]);
-    }
+    @memcpy(buf[8 .. 8 + 6], target[0..6]);
+    // if (target.len == 6) {
+    //     @memcpy(buf[8 .. 8 + 6], target[0..6]);
+    //     // Leave the rest as zeros (already done by @memset above)
+    // } else {
+    //     // Copy all 14 bytes if provided
+    //     @memcpy(buf[8 .. 8 + 14], target[0..14]);
+    // }
 
     // byte 22 => ackRequired, resRequired in bits 0 and 1
     var responseByte: u8 = 0;
@@ -243,8 +244,6 @@ pub fn encode(
     if (payload) |pl| {
         @memcpy(buf[36 .. 36 + pl.len], pl);
     }
-
-    return buf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
