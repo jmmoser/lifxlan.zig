@@ -32,8 +32,8 @@ const label = "Macbook Pro";
 const StateLabelPayload: *const [32]u8 = label ++ [_]u8{0} ** (32 - label.len);
 
 const StateVersionPayload = [_]u8{
-    0x01, 0x00, 0x00, 0x00,
-    94,   0x00, 0x00, 0x00,
+    1,  0x00, 0x00, 0x00,
+    94, 0x00, 0x00, 0x00,
 };
 
 fn encodeResponse(
@@ -67,9 +67,10 @@ pub fn main() !void {
 
     try sock.bind(try network.EndPoint.parse("0.0.0.0:56700"));
 
+    std.debug.print("Waiting for message...\n", .{});
+
     var buffer: [1024]u8 = undefined;
     while (true) {
-        std.debug.print("Waiting for message...\n", .{});
         const recv_result = try sock.receiveFrom(&buffer);
         const slice = buffer[0..recv_result.numberOfBytes];
         const responseFlags = encoding.getHeaderResponseFlags(slice, 0);
@@ -87,7 +88,7 @@ pub fn main() !void {
 
         switch (encoding.getHeaderType(slice, 0)) {
             @intFromEnum(constants.CommandType.GetService) => {
-                std.debug.print("Received GetService from {any}\n", .{recv_result.sender});
+                std.debug.print("{any} Received GetService\n", .{recv_result.sender});
 
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateService), &StateServicePayload);
 
@@ -96,7 +97,7 @@ pub fn main() !void {
                 };
             },
             @intFromEnum(constants.CommandType.GetColor) => {
-                std.debug.print("Received GetColor from {any}\n", .{recv_result.sender});
+                std.debug.print("{any} Received GetColor\n", .{recv_result.sender});
 
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.LightState), &LightStatePayload);
 
@@ -105,7 +106,7 @@ pub fn main() !void {
                 };
             },
             @intFromEnum(constants.CommandType.GetLabel) => {
-                std.debug.print("Received GetLabel from {any}\n", .{recv_result.sender});
+                std.debug.print("{any} Received GetLabel\n", .{recv_result.sender});
 
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateLabel), StateLabelPayload);
 
@@ -114,7 +115,7 @@ pub fn main() !void {
                 };
             },
             @intFromEnum(constants.CommandType.GetVersion) => {
-                std.debug.print("Received GetVersion from {any}\n", .{recv_result.sender});
+                std.debug.print("{any} Received GetVersion\n", .{recv_result.sender});
 
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateVersion), &StateVersionPayload);
 
@@ -122,9 +123,20 @@ pub fn main() !void {
                     std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
                 };
             },
+            @intFromEnum(constants.CommandType.GetHostFirmware) => {
+                std.debug.print("{any} Received GetHostFirmware\n", .{recv_result.sender});
+
+                // TODO
+
+                // encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateInfo), &StateInfoPayload);
+
+                // _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
+                //     std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
+                // };
+            },
             else => {
                 const res = encoding.decodeHeader(slice, 0);
-                std.debug.print("Received unknown message from {any}\n", .{res});
+                std.debug.print("{any} Received unknown message: {any}\n", .{ recv_result.sender, res });
             },
         }
     }
