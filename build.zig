@@ -51,12 +51,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     }).module("ansi-term"));
 
-    // const ansi_dep = b.dependency("zig-ansi", .{
-    //     .target = target,
-    //     // .optimize = optimize,
-    // });
-    // exe.root_module.addImport("zig-ansi", ansi_dep.module("zig-ansi"));
-
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
@@ -104,4 +98,24 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
+
+    // Test server
+    const test_server_exe = b.addExecutable(.{
+        .name = "test_server",
+        .root_source_file = b.path("src/test_server.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    b.installArtifact(test_server_exe);
+
+    test_server_exe.root_module.addImport("network", b.dependency("network", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("network"));
+
+    const run_test_server = b.addRunArtifact(test_server_exe);
+
+    // Create a dedicated step for running the test server
+    const test_server_step = b.step("test_server", "Run the test server");
+    test_server_step.dependOn(&run_test_server.step);
 }
