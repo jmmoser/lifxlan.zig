@@ -28,6 +28,14 @@ const LightStatePayload = [_]u8{
     0x08, 0x09, // duration
 };
 
+const label = "Macbook Pro";
+const StateLabelPayload: *const [32]u8 = label ++ [_]u8{0} ** (32 - label.len);
+
+const StateVersionPayload = [_]u8{
+    0x01, 0x00, 0x00, 0x00,
+    94,   0x00, 0x00, 0x00,
+};
+
 fn encodeResponse(
     buffer: []u8,
     req: []const u8,
@@ -48,28 +56,15 @@ fn encodeResponse(
 }
 
 const TARGET: [6]u8 = [_]u8{ 0x98, 0x76, 0x54, 0x32, 0x10, 0xcd };
+
 pub fn main() !void {
-    // var fixedBuffer: [1000]u8 = undefined;
-    // var fba = std.heap.FixedBufferAllocator.init(&fixedBuffer);
-    // const allocator = fba.allocator();
-
-    // const StateServiceResponse = encoding.encode(allocator, false, 0, TARGET, false, false, 0, @intFromEnum(constants.CommandType.StateService), &StateServicePayload) catch |err| {
-    //     std.debug.print("Failed to encode response: {any}\n", .{err});
-    //     return;
-    // };
-
     try network.init();
     defer network.deinit();
-
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer _ = gpa.deinit();
-    // const allocator = gpa.allocator();
 
     var sock = try network.Socket.create(.ipv4, .udp);
     defer sock.close();
     try sock.setBroadcast(true);
 
-    // try sock.bind(network.SocketAddress.init(.ipv4, "0.0.0.0", 56700));
     try sock.bind(try network.EndPoint.parse("0.0.0.0:56700"));
 
     var buffer: [1024]u8 = undefined;
@@ -88,10 +83,12 @@ pub fn main() !void {
             };
         }
 
+        var responseBuffer: [1024]u8 = undefined;
+
         switch (encoding.getHeaderType(slice, 0)) {
             @intFromEnum(constants.CommandType.GetService) => {
                 std.debug.print("Received GetService from {any}\n", .{recv_result.sender});
-                var responseBuffer: [1024]u8 = undefined;
+
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateService), &StateServicePayload);
 
                 _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
@@ -101,8 +98,25 @@ pub fn main() !void {
             @intFromEnum(constants.CommandType.GetColor) => {
                 std.debug.print("Received GetColor from {any}\n", .{recv_result.sender});
 
-                var responseBuffer: [1024]u8 = undefined;
                 encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.LightState), &LightStatePayload);
+
+                _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
+                    std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
+                };
+            },
+            @intFromEnum(constants.CommandType.GetLabel) => {
+                std.debug.print("Received GetLabel from {any}\n", .{recv_result.sender});
+
+                encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateLabel), StateLabelPayload);
+
+                _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
+                    std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
+                };
+            },
+            @intFromEnum(constants.CommandType.GetVersion) => {
+                std.debug.print("Received GetVersion from {any}\n", .{recv_result.sender});
+
+                encodeResponse(&responseBuffer, slice, @intFromEnum(constants.CommandType.StateVersion), &StateVersionPayload);
 
                 _ = sock.sendTo(recv_result.sender, &responseBuffer) catch |err| {
                     std.debug.print("Failed to send message to {any}: {any}\n", .{ recv_result.sender, err });
