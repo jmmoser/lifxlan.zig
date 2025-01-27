@@ -15,6 +15,10 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const lifxlanModule = b.addModule("lifxlan", .{
+        .root_source_file = b.path("src/lifxlan.zig"),
+    });
+
     const lib = b.addStaticLibrary(.{
         .name = "lifxlan",
         // In this case the main source file is merely a path, however, in more
@@ -35,6 +39,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    exe.root_module.addImport("lifxlan", lifxlanModule);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -101,8 +107,8 @@ pub fn build(b: *std.Build) void {
 
     // Test server
     const test_server_exe = b.addExecutable(.{
-        .name = "test_server",
-        .root_source_file = b.path("src/test_server.zig"),
+        .name = "server_test",
+        .root_source_file = b.path("src/server_test.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -112,6 +118,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     }).module("network"));
+
+    test_server_exe.root_module.addImport("lifxlan", lifxlanModule);
 
     const run_test_server = b.addRunArtifact(test_server_exe);
 

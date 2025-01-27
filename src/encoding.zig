@@ -1,18 +1,3 @@
-/// A Zig translation of the provided JavaScript code for encoding/decoding
-/// LIFX protocol messages. This is a single self-contained file; you can
-/// copy/paste it into a new .zig file and build it. Everything is here,
-/// with the same structure and functionality as the original JS, but
-/// implemented in an idiomatic Zig style.
-///
-/// This translation provides functions that allocate and return new byte
-/// buffers (similar to `new Uint8Array(...)` in JS). Because Zig does not
-/// have a global default allocator for "just works" usage, we provide
-/// overloads that accept an allocator parameter. You can call these
-/// functions with e.g. `std.heap.page_allocator` or any other allocator.
-///
-/// If you prefer stack-allocated buffers (for small messages), you can
-/// adapt the code to write into a caller-supplied buffer. But for direct
-/// 1:1 translation from JS's "new Uint8Array", an allocator is used here.
 const std = @import("std");
 const types = @import("types.zig");
 

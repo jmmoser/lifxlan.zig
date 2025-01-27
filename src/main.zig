@@ -1,18 +1,10 @@
 const std = @import("std");
 const network = @import("network");
 const ansi = @import("ansi-term");
-const types = @import("types.zig");
-const Router = @import("router.zig");
-const Device = @import("device.zig");
-const Devices = @import("devices.zig");
-const Client = @import("client.zig");
-const commands = @import("commands.zig");
-const encoding = @import("encoding.zig");
-const constants = @import("constants.zig");
-const utils = @import("utils.zig");
+const lifxlan = @import("lifxlan");
 
 var gSock: *network.Socket = undefined;
-var client: *Client = undefined;
+var client: *lifxlan.Client = undefined;
 const stdout = std.io.getStdOut().writer();
 
 fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void {
@@ -24,14 +16,14 @@ fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u
     };
 }
 
-fn onDeviceAdded(device: *Device) void {
+fn onDeviceAdded(device: *lifxlan.Device) void {
     // std.debug.print("Device added: {s}\n", .{device.serialNumber});
 
-    client.send(commands.GetLabelCommand(), device) catch |err| {
+    client.send(lifxlan.commands.GetLabelCommand(), device) catch |err| {
         std.debug.print("Failed to send GetLabelCommand to device {s}: {any}\n", .{ device.serialNumber, err });
     };
 
-    client.send(commands.GetColorCommand(), device) catch |err| {
+    client.send(lifxlan.commands.GetColorCommand(), device) catch |err| {
         std.debug.print("Failed to send GetColorCommand to device {s}: {any}\n", .{ device.serialNumber, err });
     };
 }
@@ -50,48 +42,48 @@ pub fn main() !void {
 
     gSock = &sock;
 
-    var router = try Router.init(allocator, .{
+    var router = try lifxlan.Router.init(allocator, .{
         .handlers = null,
         .onSend = onSendFn,
     });
     defer router.deinit();
 
-    var devices = Devices.init(allocator, .{
+    var devices = lifxlan.Devices.init(allocator, .{
         .onAdded = onDeviceAdded,
     });
     defer devices.deinit();
 
     const ClientMessageHandler = struct {
-        devices: *Devices,
+        devices: *lifxlan.Devices,
 
-        pub fn onMessage(self: *const @This(), header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
+        pub fn onMessage(self: *const @This(), header: lifxlan.types.Header, payload: []const u8, serialNumber: [12]u8) void {
             _ = self;
 
             switch (header.type) {
-                @intFromEnum(constants.CommandType.StateService) => {
+                @intFromEnum(lifxlan.constants.CommandType.StateService) => {
                     // const serviceType: constants.ServiceType = @enumFromInt(payload[0]);
                     // std.debug.print("Client received StateService message from {s}: {s}\n", .{
                     //     serialNumber,
                     //     @tagName(serviceType),
                     // });
                 },
-                @intFromEnum(constants.CommandType.StateLabel) => {
+                @intFromEnum(lifxlan.constants.CommandType.StateLabel) => {
                     std.debug.print("Client received StateLabel message from {s}: {s}\n", .{
                         serialNumber,
                         payload,
                     });
                 },
-                @intFromEnum(constants.CommandType.LightState) => {
+                @intFromEnum(lifxlan.constants.CommandType.LightState) => {
                     // if (self.devices.get(serialNumber)) |device| {
                     //     client.send(commands.GetColorCommand(), device) catch {};
                     // }
 
-                    var offsetRef = encoding.OffsetRef{ .current = 0 };
-                    const color = encoding.decodeLightState(payload, &offsetRef) catch {
+                    var offsetRef = lifxlan.encoding.OffsetRef{ .current = 0 };
+                    const color = lifxlan.encoding.decodeLightState(payload, &offsetRef) catch {
                         return;
                     };
 
-                    const rgb = utils.hsbToRgb(color.hue, color.saturation, color.brightness);
+                    const rgb = lifxlan.utils.hsbToRgb(color.hue, color.saturation, color.brightness);
 
                     const sty: ansi.style.Style = .{ .foreground = .{ .RGB = .{ .r = rgb.r, .g = rgb.g, .b = rgb.b } } };
                     stdout.print("{s}: ", .{serialNumber}) catch {};
@@ -115,9 +107,9 @@ pub fn main() !void {
         }
     };
 
-    client = try Client.init(allocator, .{
+    client = try lifxlan.Client.init(allocator, .{
         .router = &router,
-        .onMessage = types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
+        .onMessage = lifxlan.types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
     });
     defer client.deinit();
 
@@ -134,7 +126,7 @@ pub fn main() !void {
     getLightStatesThread.join();
 }
 
-fn socketReader(sock: *network.Socket, router: *Router, devices: *Devices) !void {
+fn socketReader(sock: *network.Socket, router: *lifxlan.Router, devices: *lifxlan.Devices) !void {
     var buffer: [1024]u8 = undefined;
     while (true) {
         const recv_result = try sock.receiveFrom(&buffer);
@@ -149,16 +141,16 @@ fn socketReader(sock: *network.Socket, router: *Router, devices: *Devices) !void
 
 fn discoverDevicesThread() !void {
     while (true) {
-        try client.broadcast(commands.GetServiceCommand());
+        try client.broadcast(lifxlan.commands.GetServiceCommand());
         std.time.sleep(5 * 1000 * 1000 * 1000);
     }
 }
 
-fn getLightStates(devices: *Devices) void {
+fn getLightStates(devices: *lifxlan.Devices) void {
     while (true) {
         var value_iterator = devices.knownDevices.valueIterator();
         while (value_iterator.next()) |value| {
-            client.send(commands.GetColorCommand(), value.*) catch |err| {
+            client.send(lifxlan.commands.GetColorCommand(), value.*) catch |err| {
                 std.debug.print("Error sending GetColorCommand: {any}\n", .{err});
             };
         }
