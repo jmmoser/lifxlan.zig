@@ -119,6 +119,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     }).module("network"));
 
+    test_server_exe.root_module.addImport("ansi-term", b.dependency("ansi-term", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("ansi-term"));
+
     test_server_exe.root_module.addImport("lifxlan", lifxlanModule);
 
     const run_test_server = b.addRunArtifact(test_server_exe);

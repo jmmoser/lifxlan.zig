@@ -180,7 +180,7 @@ pub fn encode(
     sequence: u8,
     msgType: u16,
     payload: ?[]const u8,
-) void {
+) []u8 {
     const protocol = 1024; // 0x400
     const addressable = 1;
     const origin: u16 = 0;
@@ -229,6 +229,7 @@ pub fn encode(
     if (payload) |pl| {
         @memcpy(buf[36 .. 36 + pl.len], pl);
     }
+    return buf[0..size];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
