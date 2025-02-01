@@ -1,4 +1,3 @@
-/main*
 .zig-cache/
 zig-out/
-src/server_test.zig
+playground/

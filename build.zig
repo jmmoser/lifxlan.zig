@@ -33,26 +33,26 @@ pub fn build(b: *std.Build) void {
     // // running `zig build`).
     // b.installArtifact(lib);
 
-    const exe = b.addExecutable(.{
+    const example_client_exe = b.addExecutable(.{
         .name = "lifxlan",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("examples/client.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("lifxlan", lifxlanModule);
+    example_client_exe.root_module.addImport("lifxlan", lifxlanModule);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
-    b.installArtifact(exe);
+    b.installArtifact(example_client_exe);
 
-    exe.root_module.addImport("network", b.dependency("network", .{
+    example_client_exe.root_module.addImport("network", b.dependency("network", .{
         .target = target,
         .optimize = optimize,
     }).module("network"));
 
-    exe.root_module.addImport("ansi-term", b.dependency("ansi-term", .{
+    example_client_exe.root_module.addImport("ansi-term", b.dependency("ansi-term", .{
         .target = target,
         .optimize = optimize,
     }).module("ansi-term"));
@@ -60,7 +60,7 @@ pub fn build(b: *std.Build) void {
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(example_client_exe);
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
@@ -108,7 +108,7 @@ pub fn build(b: *std.Build) void {
     // Test server
     const test_server_exe = b.addExecutable(.{
         .name = "server_test",
-        .root_source_file = b.path("src/server_test.zig"),
+        .root_source_file = b.path("playground/server_test.zig"),
         .target = target,
         .optimize = optimize,
     });
