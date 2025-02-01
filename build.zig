@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lifxlanModule = b.addModule("lifxlan", .{
-        .root_source_file = b.path("src/lifxlan.zig"),
+        .root_source_file = b.path("src/root.zig"),
     });
 
     const lib = b.addStaticLibrary(.{

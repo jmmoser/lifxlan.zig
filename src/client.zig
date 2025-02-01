@@ -84,7 +84,7 @@ pub fn deinit(self: *Client) void {
 pub fn broadcast(self: *Client, command: commands.Command) !void {
     var buffer: [1024]u8 = undefined;
 
-    encoding.encode(
+    const message = encoding.encode(
         &buffer,
         true,
         self.source,
@@ -96,13 +96,13 @@ pub fn broadcast(self: *Client, command: commands.Command) !void {
         command.payload,
     );
 
-    try self.router.send(&buffer, constants.PORT, constants.BROADCAST, null);
+    try self.router.send(message, constants.PORT, constants.BROADCAST, null);
 }
 
 pub fn unicast(self: *Client, command: commands.Command, device: Device) !void {
     var buffer: [1024]u8 = undefined;
 
-    encoding.encode(
+    const message = encoding.encode(
         &buffer,
         false,
         self.source,
@@ -114,14 +114,14 @@ pub fn unicast(self: *Client, command: commands.Command, device: Device) !void {
         command.payload,
     );
 
-    self.router.send(&buffer, device.port, device.address, device.serialNumber);
+    self.router.send(message, device.port, device.address, device.serialNumber);
     device.sequence = incrementSequence(device.sequence);
 }
 
 pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device: Device) !void {
     var buffer: [1024]u8 = undefined;
 
-    encoding.encode(
+    const message = encoding.encode(
         &buffer,
         false,
         self.source,
@@ -137,13 +137,13 @@ pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device:
     try self.registerAckHandler(key);
 
     device.sequence = incrementSequence(device.sequence);
-    self.router.send(&buffer, device.port, device.address, device.serialNumber);
+    self.router.send(message, device.port, device.address, device.serialNumber);
 }
 
 pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
     var buffer: [1024]u8 = undefined;
 
-    encoding.encode(
+    const message = encoding.encode(
         &buffer,
         false,
         self.source,
@@ -159,7 +159,7 @@ pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
     // try self.registerResponseHandler(key, command.decode);
 
     device.sequence = incrementSequence(device.sequence);
-    try self.router.send(&buffer, device.port, device.address, device.serialNumber);
+    try self.router.send(message, device.port, device.address, device.serialNumber);
 }
 
 fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
