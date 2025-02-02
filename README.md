@@ -1,7 +1,15 @@
+## Installation
+1. Add lifxlan as a dependency in your build.zig.zon:
 ```sh
-# How to run
-zig build run
+zig fetch --save git+https://github.com/jmmoser/lifxlan.zig#main
+```
+2. In your build.zig, add the lifxlan module as a dependency you your program:
+```zig
+const lifxlan = b.dependency("lifxlan", .{
+    .target = target,
+    .optimize = optimize,
+});
 
-# How to fetch hash for a dependency
-zig fetch 'https://github.com/<username>/<respository-name>/archive/<commit-hash>.tar.gz'
+// the executable from your call to b.addExecutable(...)
+exe.root_module.addImport("lifxlan", lifxlan.module("lifxlan"));
 ```
