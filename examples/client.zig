@@ -107,11 +107,19 @@ pub fn main() !void {
         }
     };
 
-    client = try lifxlan.Client.init(allocator, .{
+    var lifxClient = try lifxlan.Client.init(allocator, .{
         .router = &router,
         .onMessage = lifxlan.types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
     });
     defer client.deinit();
+
+    client = &lifxClient;
+
+    try router.register(client.source, .{
+        .handler = lifxlan.Client.onMessage,
+        .context = client,
+    });
+    defer router.deregister(client.source) catch {};
 
     const discover_thread = try std.Thread.spawn(.{}, discoverDevicesThread, .{});
     const getLightStatesThread = try std.Thread.spawn(.{}, getLightStates, .{&devices});
@@ -131,10 +139,6 @@ fn socketReader(sock: *network.Socket, router: *lifxlan.Router, devices: *lifxla
     while (true) {
         const recv_result = try sock.receiveFrom(&buffer);
         const result = try router.receive(buffer[0..recv_result.numberOfBytes]);
-        // std.debug.print("received message type: {d}\n", .{result.header.type});
-        // const serviceType: constants.CommandType = @enumFromInt(result.header.type);
-        // std.debug.print("received message payload: {s}\n", .{@tagName(serviceType)});
-
         _ = devices.register(result.serialNumber, recv_result.sender.port, recv_result.sender.address.ipv4.value, result.header.target) catch {};
     }
 }

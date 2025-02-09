@@ -10,13 +10,21 @@ const Client = @This();
 
 const ResponseKey = [15]u8;
 
+pub const ClientOptions = struct {
+    router: *Router,
+    defaultTimeoutMs: ?u32 = 3000,
+    source: ?u32 = null,
+    onMessage: ?types.MessageHandler = null,
+};
+
+config: struct {
+    onMessage: ?types.MessageHandler = null,
+},
 router: *Router,
 source: u32,
 defaultTimeoutMs: u32,
 responseHandlers: std.AutoHashMap(ResponseKey, ResponseHandler),
-disposed: bool,
 allocator: std.mem.Allocator,
-onMessage: ?types.MessageHandler,
 
 fn getResponseKey(serialNumber: [12]u8, sequence: u8) !ResponseKey {
     var key: ResponseKey = undefined;
@@ -39,46 +47,23 @@ fn incrementSequence(sequence: ?u8) u8 {
 pub const ResponseHandler = struct {
     handler: *const fn (context: *anyopaque, typ: u16, bytes: []const u8, offsetRef: *encoding.OffsetRef) void,
     context: *anyopaque,
-    // timer: ?std.time.Timer = null,
 };
 
-pub const ClientOptions = struct {
-    router: *Router,
-    defaultTimeoutMs: ?u32 = 3000,
-    source: ?u32 = null,
-    onMessage: ?types.MessageHandler = null,
-};
-
-pub fn init(allocator: std.mem.Allocator, options: ClientOptions) !*Client {
-    const source = options.source orelse try options.router.nextSource();
-    const defaultTimeoutMs = options.defaultTimeoutMs orelse 3000;
-
-    const client = try allocator.create(Client);
-    client.* = .{
+pub fn init(allocator: std.mem.Allocator, options: ClientOptions) !Client {
+    return .{
+        .config = .{
+            .onMessage = options.onMessage,
+        },
         .router = options.router,
-        .source = source,
-        .defaultTimeoutMs = defaultTimeoutMs,
+        .source = options.source orelse try options.router.nextSource(),
+        .defaultTimeoutMs = options.defaultTimeoutMs orelse 3000,
         .responseHandlers = std.AutoHashMap(ResponseKey, ResponseHandler).init(allocator),
-        .disposed = false,
         .allocator = allocator,
-        .onMessage = options.onMessage,
     };
-
-    try options.router.register(source, .{
-        .handler = onMessage,
-        .context = client,
-    });
-
-    return client;
 }
 
 pub fn deinit(self: *Client) void {
-    if (!self.disposed) {
-        self.disposed = true;
-        self.router.deregister(self.source) catch {};
-    }
     self.responseHandlers.deinit();
-    self.allocator.destroy(self);
 }
 
 pub fn broadcast(self: *Client, command: commands.Command) !void {
@@ -133,8 +118,8 @@ pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device:
         command.payload,
     );
 
-    const key = try getResponseKey(device.serialNumber, device.sequence);
-    try self.registerAckHandler(key);
+    // const key = try getResponseKey(device.serialNumber, device.sequence);
+    // try self.registerAckHandler(key);
 
     device.sequence = incrementSequence(device.sequence);
     self.router.send(message, device.port, device.address, device.serialNumber);
@@ -162,9 +147,9 @@ pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
     try self.router.send(message, device.port, device.address, device.serialNumber);
 }
 
-fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
+pub fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
     const self: *Client = @ptrCast(@alignCast(context));
-    if (self.onMessage) |onMessageFn| {
+    if (self.config.onMessage) |onMessageFn| {
         onMessageFn.onMessage(header, payload, serialNumber);
     }
     const key = getResponseKey(serialNumber, header.sequence) catch return;

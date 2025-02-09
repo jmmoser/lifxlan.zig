@@ -36,7 +36,7 @@ pub const RouterOptions = struct {
 };
 
 pub fn init(allocator: std.mem.Allocator, options: RouterOptions) !Router {
-    return Router{
+    return .{
         .handlers = options.handlers orelse std.AutoHashMap(u32, HandlerEntry).init(allocator),
         .onSend = options.onSend,
         .onMessage = options.onMessage,
