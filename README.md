@@ -3,7 +3,7 @@
 ```sh
 zig fetch --save git+https://github.com/jmmoser/lifxlan.zig#main
 ```
-2. In your build.zig, add the lifxlan module as a dependency you your program:
+2. In your build.zig, add the lifxlan module as a dependency to your program:
 ```zig
 const lifxlan = b.dependency("lifxlan", .{
     .target = target,
