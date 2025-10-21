@@ -97,7 +97,7 @@ const GetDeviceError = error{
     Aborted,
 };
 
-pub fn get(self: *Devices, serialNumber: [12]u8) ?*Device { //, timeout_ms: ?u32*/) !?*Device {
+pub fn get(self: *Devices, serialNumber: [12]u8) ?*Device {
     const serialNumberSlice: []const u8 = serialNumber[0..];
 
     if (self.knownDevices.get(serialNumberSlice)) |device| {
@@ -105,34 +105,4 @@ pub fn get(self: *Devices, serialNumber: [12]u8) ?*Device { //, timeout_ms: ?u32
     }
 
     return null;
-
-    // const timeout = timeout_ms orelse self.options.defaultTimeoutMs;
-
-    // if (timeout > 0) {
-    //     const timer = try std.time.Timer.start();
-    //     while (timer.read() < timeout * std.time.ns_per_ms) {
-    //         if (self.knownDevices.get(serialNumberSlice)) |device| {
-    //             return device;
-    //         }
-    //         std.time.sleep(1 * std.time.ns_per_ms);
-    //     }
-    //     return error.Timeout;
-    // }
-
-    // return null;
-}
-
-fn getDeviceAsync(self: *Devices, serialNumber: [12]u8) !Device {
-    var resolvers = if (self.deviceResolvers.get(serialNumber)) |existing|
-        existing
-    else blk: {
-        const new_list = std.ArrayList(DeviceCallback).init(self.allocator);
-        try self.deviceResolvers.put(serialNumber, new_list);
-        break :blk new_list;
-    };
-
-    const promise = try std.event.Promise(Device).create();
-    try resolvers.append(promise.resolve);
-
-    return promise.wait();
 }

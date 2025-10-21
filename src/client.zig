@@ -39,7 +39,7 @@ test "get response key" {
 
 fn incrementSequence(sequence: ?u8) u8 {
     if (sequence) |seq| {
-        return (seq + 1) % 0xFF;
+        return seq +% 1;
     }
     return 0;
 }
@@ -99,7 +99,7 @@ pub fn unicast(self: *Client, command: commands.Command, device: Device) !void {
         command.payload,
     );
 
-    self.router.send(message, device.port, device.address, device.serialNumber);
+    try self.router.send(message, device.port, device.address, device.serialNumber);
     device.sequence = incrementSequence(device.sequence);
 }
 
@@ -118,11 +118,8 @@ pub fn sendOnlyAcknowledgement(self: *Client, command: commands.Command, device:
         command.payload,
     );
 
-    // const key = try getResponseKey(device.serialNumber, device.sequence);
-    // try self.registerAckHandler(key);
-
     device.sequence = incrementSequence(device.sequence);
-    self.router.send(message, device.port, device.address, device.serialNumber);
+    try self.router.send(message, device.port, device.address, device.serialNumber);
 }
 
 pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
@@ -139,9 +136,6 @@ pub fn send(self: *Client, command: commands.Command, device: *Device) !void {
         command.type,
         command.payload,
     );
-
-    // const key = try getResponseKey(device.serialNumber, device.sequence);
-    // try self.registerResponseHandler(key, command.decode);
 
     device.sequence = incrementSequence(device.sequence);
     try self.router.send(message, device.port, device.address, device.serialNumber);
@@ -161,7 +155,7 @@ pub fn onMessage(context: *anyopaque, header: types.Header, payload: []const u8,
     }
 }
 
-fn registerAckHandler(self: *Client, key: [64]u8) !void {
+fn registerAckHandler(self: *Client, key: ResponseKey) !void {
     if (self.responseHandlers.contains(key)) {
         return error.HandlerConflict;
     }

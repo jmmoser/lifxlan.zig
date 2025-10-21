@@ -10,7 +10,6 @@ fn writeUint8(bytes: []u8, offset: usize, value: u8) void {
 }
 
 fn readUint8(bytes: []const u8, offset: usize) u8 {
-    // return std.mem.readInt(u8, bytes[offset .. offset + 1], .little);
     return bytes[offset];
 }
 
@@ -20,18 +19,10 @@ fn writeUint16LE(bytes: []u8, offset: usize, value: u16) void {
 }
 
 fn readUint16LE(bytes: []const u8, offset: usize) u16 {
-    // const ptr: *[2]u8 = @constCast(@ptrCast(bytes[offset .. offset + 2]));
-    // return std.mem.readInt(u16, ptr, .little);
-
     return @as(u16, bytes[offset]) | (@as(u16, bytes[offset + 1]) << 8);
 }
 
 fn writeUint32LE(bytes: []u8, offset: usize, value: u32) void {
-    // const ptr: *[4]u8 = @ptrCast(bytes[offset .. offset + 4]);
-    // std.mem.writeInt(u32, ptr, value, .little);
-
-    // std.mem.writeInt(u32, bytes[offset .. offset + 4], value, .little);
-
     bytes[offset + 0] = @as(u8, @truncate(value >> 0));
     bytes[offset + 1] = @as(u8, @truncate(value >> 8));
     bytes[offset + 2] = @as(u8, @truncate(value >> 16));
@@ -46,15 +37,14 @@ fn readUint32LE(bytes: []const u8, offset: usize) u32 {
 }
 
 fn writeBigUint64LE(bytes: []u8, offset: usize, value: u64) void {
-    // lower 8 bytes in little-endian
-    bytes[offset + 0] = @as(u8, (value >> 0) & 0xff);
-    bytes[offset + 1] = @as(u8, (value >> 8) & 0xff);
-    bytes[offset + 2] = @as(u8, (value >> 16) & 0xff);
-    bytes[offset + 3] = @as(u8, (value >> 24) & 0xff);
-    bytes[offset + 4] = @as(u8, (value >> 32) & 0xff);
-    bytes[offset + 5] = @as(u8, (value >> 40) & 0xff);
-    bytes[offset + 6] = @as(u8, (value >> 48) & 0xff);
-    bytes[offset + 7] = @as(u8, (value >> 56) & 0xff);
+    bytes[offset + 0] = @as(u8, @truncate(value >> 0));
+    bytes[offset + 1] = @as(u8, @truncate(value >> 8));
+    bytes[offset + 2] = @as(u8, @truncate(value >> 16));
+    bytes[offset + 3] = @as(u8, @truncate(value >> 24));
+    bytes[offset + 4] = @as(u8, @truncate(value >> 32));
+    bytes[offset + 5] = @as(u8, @truncate(value >> 40));
+    bytes[offset + 6] = @as(u8, @truncate(value >> 48));
+    bytes[offset + 7] = @as(u8, @truncate(value >> 56));
 }
 
 fn readBigUint64LE(bytes: []const u8, offset: usize) u64 {
@@ -112,12 +102,10 @@ fn decodeUuid(bytes: []const u8, offsetRef: *OffsetRef) []const u8 {
     return decodeBytes(bytes, offsetRef, 16);
 }
 
-fn decodeTimestamp(bytes: []const u8, offsetRef: *OffsetRef) std.time.Time {
-    // const raw = readBigUint64LE(bytes, offsetRef.current);
-    const timestamp = std.mem.readInt(u64, bytes, std.builtin.Endian.little);
+fn decodeTimestamp(bytes: []const u8, offsetRef: *OffsetRef) u64 {
+    const timestamp = readBigUint64LE(bytes, offsetRef.current);
     offsetRef.current += 8;
     return timestamp;
-    // return std.time.Time.fromZigTimestamp(raw);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -166,8 +154,8 @@ pub fn encodeUuidTo(bytes: []u8, offset: usize, uuid: []const u8) !void {
     }
 }
 
-pub fn encodeTimestampTo(bytes: []u8, offset: usize, date: std.time.Time) void {
-    writeBigUint64LE(bytes, offset, date.nanoseconds());
+pub fn encodeTimestampTo(bytes: []u8, offset: usize, timestamp: u64) void {
+    writeBigUint64LE(bytes, offset, timestamp);
 }
 
 pub fn encode(
@@ -186,11 +174,9 @@ pub fn encode(
     const origin: u16 = 0;
 
     const payloadLen = if (payload) |pl| pl.len else 0;
-
     const size = 36 + payloadLen;
 
-    // TODO: make this only have to set the bytes that actually need to be set to 0
-    @memset(buf, 0);
+    @memset(buf[0..size], 0);
 
     // Frame Header
     writeUint16LE(buf, 0, @as(u16, @intCast(size)));
@@ -206,13 +192,6 @@ pub fn encode(
 
     // Frame Address
     @memcpy(buf[8 .. 8 + 6], target[0..6]);
-    // if (target.len == 6) {
-    //     @memcpy(buf[8 .. 8 + 6], target[0..6]);
-    //     // Leave the rest as zeros (already done by @memset above)
-    // } else {
-    //     // Copy all 14 bytes if provided
-    //     @memcpy(buf[8 .. 8 + 14], target[0..14]);
-    // }
 
     // byte 22 => ackRequired, resRequired in bits 0 and 1
     var responseByte: u8 = 0;
@@ -249,7 +228,7 @@ pub fn decodeStateService(bytes: []const u8, offsetRef: *OffsetRef) !struct {
 }
 
 pub fn decodeStateHostFirmware(bytes: []const u8, offsetRef: *OffsetRef) !struct {
-    build: std.time.Time,
+    build: u64,
     reserved: []const u8,
     version_minor: u16,
     version_major: u16,
@@ -290,7 +269,7 @@ pub fn decodeStateWifiInfo(bytes: []const u8, offsetRef: *OffsetRef) !struct {
 }
 
 pub fn decodeStateWifiFirmware(bytes: []const u8, offsetRef: *OffsetRef) !struct {
-    build: std.time.Time,
+    build: u64,
     reserved6: []const u8,
     version_minor: u16,
     version_major: u16,
@@ -334,9 +313,9 @@ pub fn decodeStateVersion(bytes: []const u8, offsetRef: *OffsetRef) !struct {
 }
 
 pub fn decodeStateInfo(bytes: []const u8, offsetRef: *OffsetRef) !struct {
-    time: std.time.Time,
-    uptime: std.time.Time,
-    downtime: std.time.Time,
+    time: u64,
+    uptime: u64,
+    downtime: u64,
 } {
     const time = decodeTimestamp(bytes, offsetRef);
     const uptime = decodeTimestamp(bytes, offsetRef);
@@ -351,7 +330,7 @@ pub fn decodeStateInfo(bytes: []const u8, offsetRef: *OffsetRef) !struct {
 pub fn decodeStateLocation(bytes: []const u8, offsetRef: *OffsetRef) !struct {
     location: []const u8,
     label: []const u8,
-    updated_at: std.time.Time,
+    updated_at: u64,
 } {
     const location = decodeBytes(bytes, offsetRef, 16);
     const label = try decodeString(bytes, offsetRef, 32);
@@ -558,7 +537,7 @@ pub fn decodeStateDeviceChain(bytes: []const u8, offsetRef: *OffsetRef) !struct 
         device_version_vendor: u32,
         device_version_product: u32,
         reserved8: []const u8,
-        firmware_build: std.time.Time,
+        firmware_build: u64,
         reversed9: []const u8,
         firmware_version_minor: u16,
         firmware_version_major: u16,
@@ -592,17 +571,12 @@ pub fn decodeStateDeviceChain(bytes: []const u8, offsetRef: *OffsetRef) !struct 
 
     defer devicesArray.deinit();
 
-    // 16 devices
-    for (std.math.zeroes(16)) |_| {
-        // if (offsetRef.current + 2*3 + 2 + 4*2 + 2 + 1 + 1 + 1 + 4*2 + 8 + 8 + 4 + /* ... etc. */ 0 > bytes.len) {
-        //     // We'll do a partial check below as we decode
-        //     return error.OutOfBounds;
-        // }
-        const accel_meas_x = i16(readUint16LE(bytes, offsetRef.current));
+    for (0..16) |_| {
+        const accel_meas_x: i16 = @bitCast(readUint16LE(bytes, offsetRef.current));
         offsetRef.current += 2;
-        const accel_meas_y = i16(readUint16LE(bytes, offsetRef.current));
+        const accel_meas_y: i16 = @bitCast(readUint16LE(bytes, offsetRef.current));
         offsetRef.current += 2;
-        const accel_meas_z = i16(readUint16LE(bytes, offsetRef.current));
+        const accel_meas_z: i16 = @bitCast(readUint16LE(bytes, offsetRef.current));
         offsetRef.current += 2;
         const reserved6 = decodeBytes(bytes, offsetRef, 2);
         const user_x = readFloat32LE(bytes, offsetRef.current);
@@ -692,7 +666,7 @@ pub fn decodeState64(bytes: []const u8, offsetRef: *OffsetRef) !struct {
     }).init(std.heap.page_allocator);
     defer colorsBuilder.deinit();
 
-    for (std.math.zeroes(64)) |_| {
+    for (0..64) |_| {
         if (offsetRef.current + 8 > bytes.len) return error.OutOfBounds;
         const hue = readUint16LE(bytes, offsetRef.current);
         offsetRef.current += 2;
@@ -767,17 +741,7 @@ pub fn getHeaderSequence(bytes: []const u8, offset: usize) u8 {
     return readUint8(bytes, offset + 23);
 }
 
-// pub fn getPayload(bytes: []const u8, offset: usize) []const u8 {
-//     if (36 + offset > bytes.len) return bytes[bytes.len..bytes.len];
-//     return bytes[offset + 36 ..];
-// }
-
 pub fn getPayload(bytes: []const u8) []const u8 {
-    // if (36 + offset > bytes.len) {
-    //     std.debug.print("No payload: {any}, {any}\n", .{ bytes.len, offset });
-    //     return bytes[bytes.len..bytes.len];
-    // }
-    // std.debug.print("Has payload: {any}, {any}\n", .{ bytes.len, offset });
     return bytes[36..];
 }
 

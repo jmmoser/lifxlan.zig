@@ -17,8 +17,6 @@ fn onSendFn(message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u
 }
 
 fn onDeviceAdded(device: *lifxlan.Device) void {
-    // std.debug.print("Device added: {s}\n", .{device.serialNumber});
-
     client.send(lifxlan.commands.GetLabelCommand(), device) catch |err| {
         std.debug.print("Failed to send GetLabelCommand to device {s}: {any}\n", .{ device.serialNumber, err });
     };
@@ -60,13 +58,7 @@ pub fn main() !void {
             _ = self;
 
             switch (header.type) {
-                @intFromEnum(lifxlan.constants.CommandType.StateService) => {
-                    // const serviceType: constants.ServiceType = @enumFromInt(payload[0]);
-                    // std.debug.print("Client received StateService message from {s}: {s}\n", .{
-                    //     serialNumber,
-                    //     @tagName(serviceType),
-                    // });
-                },
+                @intFromEnum(lifxlan.constants.CommandType.StateService) => {},
                 @intFromEnum(lifxlan.constants.CommandType.StateLabel) => {
                     std.debug.print("Client received StateLabel message from {s}: {s}\n", .{
                         serialNumber,
@@ -74,10 +66,6 @@ pub fn main() !void {
                     });
                 },
                 @intFromEnum(lifxlan.constants.CommandType.LightState) => {
-                    // if (self.devices.get(serialNumber)) |device| {
-                    //     client.send(commands.GetColorCommand(), device) catch {};
-                    // }
-
                     var offsetRef = lifxlan.encoding.OffsetRef{ .current = 0 };
                     const color = lifxlan.encoding.decodeLightState(payload, &offsetRef) catch {
                         return;
@@ -90,12 +78,6 @@ pub fn main() !void {
                     ansi.format.updateStyle(stdout, sty, null) catch {};
                     stdout.print("{s}\n", .{"███████████"}) catch {};
                     ansi.format.updateStyle(stdout, .{}, sty) catch {};
-
-                    // std.debug.print("Client received LightState message from {s} with label '{s}': {any}\n", .{
-                    //     serialNumber,
-                    //     color.label,
-                    //     color,
-                    // });
                 },
                 else => {
                     std.debug.print("Client received unhandled message from {s}: {any}\n", .{
@@ -111,7 +93,7 @@ pub fn main() !void {
         .router = &router,
         .onMessage = lifxlan.types.MessageHandler.init(&ClientMessageHandler{ .devices = &devices }),
     });
-    defer client.deinit();
+    defer lifxClient.deinit();
 
     client = &lifxClient;
 

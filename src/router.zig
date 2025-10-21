@@ -20,12 +20,6 @@ pub const HandlerEntry = struct {
     handler: MessageHandler,
 };
 
-fn defaultOnMessage(header: types.Header, payload: []const u8, serialNumber: [12]u8) void {
-    _ = header;
-    _ = payload;
-    _ = serialNumber;
-}
-
 const OnSend = *const fn (message: []const u8, port: u16, address: [4]u8, serialNumber: ?[12]u8) anyerror!void;
 const OnMessage = *const fn (header: types.Header, payload: []const u8, serialNumber: [12]u8) void;
 
@@ -50,11 +44,11 @@ pub fn deinit(self: *Router) void {
 }
 
 pub fn nextSource(self: *Router) !u32 {
-    var source: i32 = -1;
+    var source: ?u32 = null;
     var i: u32 = 0;
     while (i < MAX_SOURCE_VALUES) : (i += 1) {
         if (!self.handlers.contains(self.sourceCounter)) {
-            source = @intCast(self.sourceCounter);
+            source = self.sourceCounter;
             break;
         }
         self.sourceCounter = self.sourceCounter + 1;
@@ -62,10 +56,7 @@ pub fn nextSource(self: *Router) !u32 {
             self.sourceCounter = 2;
         }
     }
-    if (source == -1) {
-        return error.NoAvailableSource;
-    }
-    return @intCast(source);
+    return source orelse error.NoAvailableSource;
 }
 
 pub fn register(self: *Router, source: u32, handler: HandlerEntry) !void {
@@ -100,8 +91,6 @@ pub fn receive(self: *Router, message: []const u8) !ReceiveResult {
     if (self.onMessage) |onMessage| {
         onMessage(header, payload, serialNumber);
     }
-
-    // std.debug.print("Router received message from {s} at {d}: {any}\n", .{ serialNumber, header.source, payload });
 
     if (self.handlers.get(header.source)) |handler| {
         handler.handler(handler.context, header, payload, serialNumber);
