@@ -12,46 +12,85 @@ pub const Command = struct {
 
 fn noopDecode(_: []const u8, _: *encoding.OffsetRef) anyerror!void {}
 
+fn wrapDecodeStateService(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateService(bytes, offsetRef);
+}
+
+fn wrapDecodeStateHostFirmware(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateHostFirmware(bytes, offsetRef);
+}
+
+fn wrapDecodeStateWifiInfo(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateWifiInfo(bytes, offsetRef);
+}
+
+fn wrapDecodeStateWifiFirmware(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateWifiFirmware(bytes, offsetRef);
+}
+
+fn wrapDecodeStatePower(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStatePower(bytes, offsetRef);
+}
+
+fn wrapDecodeStateLabel(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateLabel(bytes, offsetRef);
+}
+
+fn wrapDecodeStateVersion(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateVersion(bytes, offsetRef);
+}
+
+fn wrapDecodeStateInfo(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateInfo(bytes, offsetRef);
+}
+
+fn wrapDecodeStateLocation(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeStateLocation(bytes, offsetRef);
+}
+
+fn wrapDecodeLightState(bytes: []const u8, offsetRef: *encoding.OffsetRef) anyerror!void {
+    _ = try encoding.decodeLightState(bytes, offsetRef);
+}
+
 pub fn GetServiceCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetService),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateService,
     };
 }
 
 pub fn GetHostFirmwareCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetHostFirmware),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateHostFirmware,
     };
 }
 
 pub fn GetWifiInfoCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetWifiInfo),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateWifiInfo,
     };
 }
 
 pub fn GetWifiFirmwareCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetWifiFirmware),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateWifiFirmware,
     };
 }
 
 pub fn GetColorCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetColor),
-        // .decode = encoding.decodeLightState,
-        .decode = noopDecode,
+        .decode = wrapDecodeLightState,
     };
 }
 
 pub fn GetPowerCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetPower),
-        .decode = noopDecode,
+        .decode = wrapDecodeStatePower,
     };
 }
 
@@ -67,14 +106,14 @@ pub fn SetPowerCommand(allocator: std.mem.Allocator, power: anytype) !Command {
     return .{
         .type = @intFromEnum(constants.CommandType.SetPower),
         .payload = payload,
-        .decode = noopDecode,
+        .decode = wrapDecodeStatePower,
     };
 }
 
 pub fn GetLabelCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetLabel),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateLabel,
     };
 }
 
@@ -82,21 +121,21 @@ pub fn SetLabelCommand(allocator: std.mem.Allocator, label: []const u8) !Command
     return .{
         .type = @intFromEnum(constants.CommandType.SetLabel),
         .payload = try encoding.encodeString(allocator, label, 32),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateLabel,
     };
 }
 
 pub fn GetVersionCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetVersion),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateVersion,
     };
 }
 
 pub fn GetInfoCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetInfo),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateInfo,
     };
 }
 
@@ -110,7 +149,7 @@ pub fn SetRebootCommand() Command {
 pub fn GetLocationCommand() Command {
     return .{
         .type = @intFromEnum(constants.CommandType.GetLocation),
-        .decode = noopDecode,
+        .decode = wrapDecodeStateLocation,
     };
 }
 
@@ -140,7 +179,7 @@ pub fn SetLocationCommand(
     return .{
         .type = @intFromEnum(constants.CommandType.SetLocation),
         .payload = payload,
-        .decode = noopDecode,
+        .decode = wrapDecodeStateLocation,
     };
 }
 
@@ -165,7 +204,7 @@ pub fn SetColorCommand(
     return .{
         .type = @intFromEnum(constants.CommandType.SetColor),
         .payload = payload,
-        .decode = noopDecode,
+        .decode = wrapDecodeLightState,
     };
 }
 
@@ -198,6 +237,6 @@ pub fn SetWaveformCommand(
     return .{
         .type = @intFromEnum(constants.CommandType.SetWaveform),
         .payload = payload,
-        .decode = noopDecode,
+        .decode = wrapDecodeLightState,
     };
 }
